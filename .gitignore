@@ -1,0 +1,11 @@
+# Datos del negocio: se quedan solo en esta PC
+data/
+*.db
+*.db-wal
+*.db-shm
+respaldos/
+tunel.log
+node_modules/
+
+# Versión anterior (prototipo)
+caja-finanzas.html

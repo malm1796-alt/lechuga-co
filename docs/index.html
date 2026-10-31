@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Lechuga &amp; Co.</title>
+<meta name="description" content="Ropa fresca de temporada. Mira la colección y pide por WhatsApp.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Tienda: un solo look claro, como el lookbook de una cadena. Foto primero, texto mínimo en mayúsculas, verde de la marca solo en acentos. */
+:root{
+  --paper:#ffffff; --ink:#111111; --mute:#6f6f6f; --line:#e7e7e7; --tile:#f1f2ec;
+  --leaf:#2f6b34; --sprout:#a6cc45; --wa:#1f7a3f;
+  --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --f-body:"Figtree","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.45 var(--f-body)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--paper)}
+img{max-width:100%}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+a{color:inherit}
+button:focus-visible,a:focus-visible{outline:2px solid var(--leaf);outline-offset:3px}
+.wrap{max-width:1440px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.lab{font-size:.72rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+/* barra superior */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--paper);border-bottom:1px solid var(--line)}
+.top .wrap{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding-block:14px}
+.logo{justify-self:center;display:flex;align-items:center;gap:10px;text-decoration:none;font-family:var(--f-display);font-weight:800;font-size:1.25rem;letter-spacing:.18em;text-transform:uppercase;white-space:nowrap}
+.logo svg{width:22px;height:auto}
+.bagbtn{justify-self:end}
+.cats{display:flex;gap:18px;overflow-x:auto;scrollbar-width:none;padding-block:0 12px}
+.cats::-webkit-scrollbar{display:none}
+.cat{flex:none;color:var(--mute);border-bottom:1px solid transparent;padding-block:3px}
+.cat[aria-pressed="true"]{color:var(--ink);border-color:var(--ink)}
+.cat:hover{color:var(--ink)}
+/* portada de temporada */
+.hero{padding-block:clamp(36px,8vw,96px) clamp(28px,5vw,56px);display:grid;gap:14px}
+.hero .k{color:var(--leaf)}
+.hero h1{margin:0;font-family:var(--f-display);font-weight:800;font-size:clamp(2.8rem,10vw,8rem);line-height:.86;letter-spacing:-.045em;text-transform:uppercase;text-wrap:balance}
+.hero p{margin:0;max-width:44ch;color:var(--mute);font-size:1.02rem}
+.seasons{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1px solid var(--ink);padding:8px 14px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+/* rejilla */
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px 4px;padding-block:8px 64px}
+@media (max-width:1000px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:640px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 4px}}
+.card{display:grid;gap:8px;text-align:left;position:relative;min-width:0}
+.ph{aspect-ratio:3/4;max-width:100%;background:var(--tile);overflow:hidden;position:relative}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+@media (prefers-reduced-motion:no-preference){.ph img{transition:transform .6s ease}.card:hover .ph img{transform:scale(1.035)}}
+.noimg{width:100%;height:100%;display:grid;place-items:center;align-content:center;gap:10px;background:var(--leaf);color:#f2f3e8;padding:16px;text-align:center}
+.noimg svg{width:46px;height:auto}
+.noimg span{font-family:var(--f-display);font-weight:800;font-size:.95rem;letter-spacing:.02em;text-transform:uppercase}
+.info{display:flex;justify-content:space-between;gap:10px;padding-inline:6px;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase}
+.info .n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flag{position:absolute;top:8px;left:8px;background:var(--paper);padding:3px 8px;font-size:.62rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.empty{padding-block:80px;text-align:center;color:var(--mute)}
+/* ficha y cesta */
+.shade{position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:30}
+.sheet{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--paper);z-index:31;overflow:auto;display:grid;gap:18px;align-content:start;
+  padding:calc(18px + env(safe-area-inset-top,0px)) max(22px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) 22px}
+.sheet .x{justify-self:end}
+.sheet h2{margin:0;font-family:var(--f-display);font-weight:800;font-size:1.6rem;letter-spacing:-.01em;text-transform:uppercase;line-height:1}
+.price{font-size:1.15rem;font-weight:600}
+.sizes{display:flex;flex-wrap:wrap;gap:6px}
+.size{min-width:56px;padding:11px 12px;border:1px solid var(--ink);font-weight:600;font-size:.82rem;text-align:center}
+.size[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.size:disabled{opacity:.3;text-decoration:line-through;cursor:not-allowed}
+.btn{display:flex;justify-content:center;align-items:center;gap:8px;width:100%;padding:16px;background:var(--ink);color:var(--paper);font-size:.76rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;text-decoration:none;text-align:center}
+.btn.alt{background:var(--paper);color:var(--ink);border:1px solid var(--ink)}
+.btn.wa{background:var(--wa)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.line{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:12px;align-items:center;padding-block:12px;border-bottom:1px solid var(--line)}
+.line .ph{width:72px}
+.line .noimg span{display:none}
+.qty{display:flex;align-items:center;gap:10px}
+.qty button{width:28px;height:28px;border:1px solid var(--line)}
+.tot{display:flex;justify-content:space-between;font-weight:700;font-size:1.05rem;letter-spacing:.04em;text-transform:uppercase}
+.note{font-size:.8rem;color:var(--mute)}
+footer{border-top:1px solid var(--line);padding-block:32px 40px;display:grid;gap:10px;color:var(--mute);font-size:.82rem}
+footer .seam{height:0;border-top:2px dashed var(--sprout);width:120px}
+</style>
+</head>
+<body>
+<div id="app"><div class="empty lab">Cargando colección…</div></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LEAF="M44 126 C52 112 70 108 78 112 C72 124 56 130 44 126 Z";
+const TAG="M30 6 H90 L114 30 V138 a6 6 0 0 1 -6 6 H12 a6 6 0 0 1 -6 -6 V30 Z";
+const mark=(bg,fg,leaf)=>`<svg viewBox="0 0 120 150" aria-hidden="true"><path d="${TAG}" fill="${bg}"/><circle cx="60" cy="33" r="7" fill="none" stroke="${fg}" stroke-width="3"/><text x="60" y="103" text-anchor="middle" font-family="Bricolage Grotesque,sans-serif" font-weight="800" font-size="40" letter-spacing="-2" fill="${fg}">L&amp;C</text><path d="${LEAF}" fill="${leaf}"/></svg>`;
+let C={settings:{name:"Lechuga & Co.",tagline:"Ropa fresca de temporada",phone:"",currency:"MXN"},items:[]};
+const U={cat:"",season:"",open:null,size:null,bag:[],showBag:false};
+try{U.bag=JSON.parse(localStorage.getItem("lc-cesta")||"[]")}catch{}
+const saveBag=()=>{try{localStorage.setItem("lc-cesta",JSON.stringify(U.bag))}catch{}};
+const money=n=>{try{return new Intl.NumberFormat("es-MX",{style:"currency",currency:C.settings.currency||"MXN",maximumFractionDigits:0}).format(n||0)}catch{return "$"+Math.round(n||0)}};
+const phoneDigits=p=>{let d=String(p||"").replace(/\D/g,"");if(d.length===10)d="52"+d;return d};
+
+// Agrupa tallas del mismo modelo y color en una sola ficha, como en las tiendas de cadena.
+function groups(){
+  const g=new Map();
+  for(const it of C.items){
+    const k=[it.name,it.color,it.season].join("|").toLowerCase();
+    if(!g.has(k))g.set(k,{key:"m"+g.size,name:it.name,color:it.color,season:it.season,category:it.category,desc:it.desc,photo:it.photo,price:it.price,sizes:[],stock:0});
+    const x=g.get(k);x.sizes.push({id:it.id,size:it.size||"Única",stock:it.stock});x.stock+=it.stock;
+    if(!x.photo&&it.photo)x.photo=it.photo;if(!x.desc&&it.desc)x.desc=it.desc;x.price=Math.min(x.price,it.price);
+  }
+  return [...g.values()].filter(x=>x.stock>0);
+}
+const pic=(m,alt=true)=>m.photo?`<img src="${esc(m.photo)}" alt="${alt?esc(m.name+(m.color?", "+m.color:"")):""}" loading="lazy">`:`<div class="noimg">${mark("#f2f3e8","#2f6b34","#a6cc45")}<span>${esc(m.name)}</span></div>`;
+
+function render(){
+  const all=groups(),seasons=[...new Set(all.map(m=>m.season).filter(Boolean))];
+  const featured=seasons.filter(s=>!/todo el año/i.test(s)).sort().reverse()[0]||seasons[0]||"Nueva colección";
+  const list=all.filter(m=>(!U.cat||m.category===U.cat)&&(!U.season||m.season===U.season));
+  const cats=[...new Set(all.filter(m=>!U.season||m.season===U.season).map(m=>m.category).filter(Boolean))];
+  const n=U.bag.reduce((a,b)=>a+b.qty,0),st=C.settings;
+  let h=`<header class="top"><div class="wrap"><span></span><a class="logo" href="#">${mark("#111","#fff","#a6cc45")}${esc(st.name)}</a><button class="bagbtn lab" data-act="bag">Cesta (${n})</button></div>
+    <div class="wrap"><nav class="cats" aria-label="Categorías"><button class="cat lab" data-act="cat" data-k="" aria-pressed="${!U.cat}">Ver todo</button>${cats.map(c=>`<button class="cat lab" data-act="cat" data-k="${esc(c)}" aria-pressed="${U.cat===c}">${esc(c)}</button>`).join("")}</nav></div></header>
+  <main class="wrap">
+    <section class="hero"><div class="lab k">${esc(st.name)} · Temporada</div><h1>${esc(U.season||featured)}</h1><p>${esc(st.tagline||"")}. Elige tu talla y haz tu pedido por WhatsApp.</p>
+      ${seasons.length>1?`<div class="seasons"><button class="chip lab" data-act="season" data-k="" aria-pressed="${!U.season}">Todas</button>${seasons.map(s=>`<button class="chip lab" data-act="season" data-k="${esc(s)}" aria-pressed="${U.season===s}">${esc(s)}</button>`).join("")}</div>`:""}</section>
+    ${list.length?`<section class="grid" aria-label="Productos">${list.map(m=>`<button class="card" id="p-${esc(m.sizes[0].id)}" data-act="open" data-k="${m.key}"><div class="ph">${pic(m)}</div>${m.stock<=2?'<span class="flag">Últimas piezas</span>':""}<div class="info"><span class="n">${esc(m.name)}</span><span>${money(m.price)}</span></div></button>`).join("")}</section>`
+      :`<div class="empty lab">${C.items.length?"No hay piezas en esta sección por ahora.":"La colección llega muy pronto."}</div>`}
+  </main>
+  <footer class="wrap"><div class="seam"></div><div><b style="color:var(--ink)">${esc(st.name)}</b> · ${esc(st.tagline||"")}</div>
+    ${st.phone?`<div>Pedidos por WhatsApp: <span style="user-select:all;color:var(--ink)">${esc(st.phone)}</span></div>`:""}
+    ${C.publishedAt?`<div>Catálogo actualizado el ${new Date(C.publishedAt).toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}. Existencias sujetas a disponibilidad.</div>`:""}</footer>`;
+  const m=U.open&&all.find(x=>x.key===U.open);
+  if(m){const sel=m.sizes.find(s=>s.id===U.size);
+    const ask=st.phone?`https://wa.me/${phoneDigits(st.phone)}?text=${encodeURIComponent(`Hola ${st.name} 👋 Me interesa: ${m.name}${m.color?" ("+m.color+")":""}${sel?", talla "+sel.size:""}. ¿Está disponible?`)}`:"";
+    h+=`<div class="shade" data-act="close"></div><aside class="sheet" role="dialog" aria-modal="true" aria-label="${esc(m.name)}"><button class="x lab" data-act="close">Cerrar ✕</button>
+      <div class="ph">${pic(m)}</div><div style="display:grid;gap:6px"><div class="lab" style="color:var(--leaf)">${esc(m.season||"")}</div><h2>${esc(m.name)}</h2><div class="price">${money(sel?C.items.find(i=>i.id===sel.id).price:m.price)}</div>${m.color?`<div class="note">Color: ${esc(m.color)}</div>`:""}</div>
+      <div style="display:grid;gap:8px"><div class="lab">Elige tu talla</div><div class="sizes">${m.sizes.map(s=>`<button class="size" data-act="size" data-k="${esc(s.id)}" aria-pressed="${U.size===s.id}" ${s.stock<=0?"disabled":""}>${esc(s.size)}</button>`).join("")}</div>
+        ${sel&&sel.stock<=2?`<div class="note">Quedan pocas piezas en esta talla.</div>`:""}</div>
+      <button class="btn" data-act="add" ${sel?"":"disabled"}>${sel?"Añadir a la cesta":"Selecciona una talla"}</button>
+      ${ask?`<a class="btn alt" href="${esc(ask)}" target="_blank" rel="noopener">Preguntar por WhatsApp</a>`:""}
+      ${m.desc?`<p class="note" style="margin:0">${esc(m.desc)}</p>`:""}</aside>`}
+  if(U.showBag){const total=U.bag.reduce((a,b)=>a+b.qty*b.price,0);
+    const text=`Hola ${st.name} 👋 Quiero hacer este pedido:\n\n${U.bag.map(b=>`• ${b.qty} x ${b.name}${b.color?" – "+b.color:""} – Talla ${b.size} – ${money(b.qty*b.price)}`).join("\n")}\n\nTotal: ${money(total)}\n\nMi nombre: `;
+    const order=st.phone&&U.bag.length?`https://wa.me/${phoneDigits(st.phone)}?text=${encodeURIComponent(text)}`:"";
+    h+=`<div class="shade" data-act="close-bag"></div><aside class="sheet" role="dialog" aria-modal="true" aria-label="Cesta"><div style="display:flex;justify-content:space-between;align-items:center"><h2>Cesta</h2><button class="lab" data-act="close-bag">Cerrar ✕</button></div>
+      ${U.bag.length?`<div>${U.bag.map((b,i)=>`<div class="line"><div class="ph">${pic({photo:b.photo,name:b.name},false)}</div><div style="min-width:0"><div class="lab" style="letter-spacing:.08em">${esc(b.name)}</div><div class="note">${esc([b.color,"Talla "+b.size].filter(Boolean).join(" · "))}</div><div class="qty" style="margin-top:6px"><button data-act="dec" data-k="${i}" aria-label="Quitar uno">−</button><span>${b.qty}</span><button data-act="inc" data-k="${i}" aria-label="Agregar uno">+</button></div></div><div>${money(b.qty*b.price)}</div></div>`).join("")}</div>
+        <div class="tot"><span>Total</span><span>${money(total)}</span></div>
+        ${order?`<a class="btn wa" href="${esc(order)}" target="_blank" rel="noopener">Enviar pedido por WhatsApp</a><p class="note" style="margin:0">Se abre WhatsApp con tu pedido escrito. Te confirmamos existencias, pago y entrega.</p>`:`<p class="note">Pronto podrás enviar tu pedido por WhatsApp.</p>`}`
+      :`<p class="note">Tu cesta está vacía.</p>`}</aside>`}
+  $("#app").innerHTML=h;
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,k=b.dataset.k;
+  if(a==="cat"){U.cat=k}
+  else if(a==="season"){U.season=k;U.cat=""}
+  else if(a==="open"){U.open=k;U.size=null;const m=groups().find(x=>x.key===k);if(m){const ok=m.sizes.filter(s=>s.stock>0);if(ok.length===1)U.size=ok[0].id}}
+  else if(a==="close"){U.open=null}
+  else if(a==="size"){U.size=k}
+  else if(a==="add"){const it=C.items.find(i=>i.id===U.size);if(!it)return;const m=groups().find(x=>x.key===U.open);
+    const ex=U.bag.find(x=>x.id===it.id);ex?ex.qty++:U.bag.push({id:it.id,qty:1,name:it.name,color:it.color,size:it.size||"Única",price:it.price,photo:m&&m.photo||""});
+    saveBag();U.open=null;U.showBag=true}
+  else if(a==="bag"){U.showBag=true}
+  else if(a==="close-bag"){U.showBag=false}
+  else if(a==="inc"){U.bag[k].qty++;saveBag()}
+  else if(a==="dec"){U.bag[k].qty--;if(U.bag[k].qty<=0)U.bag.splice(k,1);saveBag()}
+  else return;
+  render();
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&(U.open||U.showBag)){U.open=null;U.showBag=false;render()}});
+fetch("catalogo.json",{cache:"no-cache"}).then(r=>r.ok?r.json():null).then(d=>{
+  if(d){C=d;const ids=new Set(d.items.filter(i=>i.stock>0).map(i=>i.id));U.bag=U.bag.filter(b=>ids.has(b.id)&&b.qty>0);saveBag()}
+  render();
+}).catch(()=>render());
+</script>
+</body>
+</html>
