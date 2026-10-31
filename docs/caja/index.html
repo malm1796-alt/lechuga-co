@@ -168,15 +168,21 @@ code.url{font-family:var(--f-mono);font-size:.82rem;background:var(--sunk);paddi
 <div class="wrap"><main id="main"><div class="empty">Cargando la tienda…</div></main></div>
 <div id="toast" class="toast" hidden></div>
 <div id="overlay" class="overlay" hidden></div>
-<script src="../config.js"></script>
-
 <script>
 const TABS=[["hoy","Hoy"],["vender","Vender"],["catalogo","Catálogo"],["movs","Gastos y compras"],["reportes","Estados financieros"],["conexiones","Conexiones"],["marca","Marca"],["ajustes","Ajustes"]];
-// Dónde está el servidor: en la PC de la tienda (misma dirección) o, desde GitHub Pages, la del túnel en config.js.
-const API=(()=>{let o="";try{o=localStorage.getItem("lc-api")||""}catch{}
+// Dónde está el servidor: en la PC de la tienda es la misma dirección; desde GitHub Pages es la del túnel,
+// que tunel.js publica en config.json cada vez que la PC enciende.
+const REMOTE=/github\.io$/i.test(location.hostname);
+let API=(()=>{let o="";try{o=localStorage.getItem("lc-api")||""}catch{}
   if(o)return o.replace(/\/$/,"");
-  if(/github\.io$/i.test(location.hostname)||location.protocol==="file:")return String(window.LECHUGA_API||"").replace(/\/$/,"");
+  if(REMOTE)try{return localStorage.getItem("lc-tunel")||""}catch{return ""}
   return location.origin})();
+async function refreshApi(){
+  if(!REMOTE)return false;
+  try{const c=await (await fetch("../config.json?t="+Date.now(),{cache:"no-store"})).json(),u=String(c.api||"").replace(/\/$/,"");
+    if(u&&u!==API){API=u;try{localStorage.setItem("lc-tunel",u)}catch{}return true}}catch{}
+  return false;
+}
 let TOKEN=null;try{TOKEN=localStorage.getItem("lc-token")}catch{}
 const EXP_CATS=["Renta","Nómina","Luz y agua","Internet y teléfono","Publicidad","Empaque y bolsas","Comisiones bancarias","Transporte","Mantenimiento","Impuestos","Otros"];
 const DRAW="Retiro del dueño";
@@ -237,11 +243,12 @@ let rq=0;function schedule(){if(!rq)rq=requestAnimationFrame(()=>{rq=0;render()}
 
 async function boot(){
   render();
+  await refreshApi();render();
   if(TOKEN)try{await load()}catch(e){S.err=e.message;schedule()}
   setInterval(async()=>{
     if(!TOKEN||document.hidden)return;
     try{const v=await api("GET","/api/version");if(v.version!==S.version||!S.ready)await load();else if(S.err){S.err=null;schedule()}}
-    catch(e){if(TOKEN){S.err=e.message;schedule()}}
+    catch(e){if(!TOKEN)return;if(await refreshApi()){try{await load();return}catch{}}S.err=e.message;schedule()}
   },15000);
 }
 function resizeImage(file,max=900,q=.78){return new Promise((res,rej)=>{const img=new Image(),u=URL.createObjectURL(file);
