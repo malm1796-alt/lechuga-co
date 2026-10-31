@@ -46,6 +46,8 @@ CREATE INDEX IF NOT EXISTS idx_sales_ts ON sales(ts);
 const DEFAULT_SETTINGS = {
   name: "Lechuga & Co.", tagline: "Ropa fresca de temporada", phone: "", currency: "MXN",
   openingCash: 0, fixedAssets: 0, liabilities: 0, storeUrl: "",
+  categories: ["Playeras", "Blusas", "Camisas", "Suéteres", "Pantalones", "Vestidos", "Chamarras", "Calzado", "Accesorios", "Infantil"],
+  seasons: ["Otoño-Invierno 2026", "Primavera-Verano 2027", "Todo el año"],
 };
 
 function getSettings() {

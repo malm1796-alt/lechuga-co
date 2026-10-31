@@ -259,7 +259,14 @@ async function route(req, res) {
   const one = /^\/api\/(products|expenses|purchases|sales|fotos)\/([A-Za-z0-9_-]+)$/.exec(p);
   if (one && idOk(one[2])) {
     const [, col, id] = one;
-    if (m === "PUT" && COLS[col]) { if (col === "products" && b.active === false && !needAdmin()) return; COLS[col](id, b, user); bump(); return send(res, 200, { ok: true }); }
+    if (m === "PUT" && COLS[col]) {
+      if (col === "products") {
+        const old = db.prepare("SELECT active FROM products WHERE id = ?").get(id);
+        const archiving = b.active === false, restoring = old && !old.active && b.active !== false;
+        if ((archiving || restoring) && !needAdmin()) return;
+      }
+      COLS[col](id, b, user); bump(); return send(res, 200, { ok: true });
+    }
     if (m === "PUT" && col === "sales") { insertSale(id, b, user); bump(); return send(res, 200, { ok: true }); }
     if (m === "PUT" && col === "purchases") { insertPurchase(id, b, user); bump(); return send(res, 200, { ok: true }); }
     if (m === "PUT" && col === "fotos") {
@@ -271,7 +278,14 @@ async function route(req, res) {
     }
     if (m === "DELETE") {
       if (!needAdmin()) return;
-      if (col === "products") return fail(res, 400, "Los productos se archivan, no se borran");
+      if (col === "products") {
+        // Solo se elimina una prenda creada por error: si ya tuvo ventas o compras, se archiva para no romper los reportes.
+        const used = db.prepare("SELECT (SELECT COUNT(*) FROM sale_items WHERE product_id = ?) + (SELECT COUNT(*) FROM purchases WHERE product_id = ?) n").get(id, id).n;
+        if (used) return fail(res, 409, "Esta prenda ya tiene ventas o compras. Archívala para conservar los reportes.");
+        db.prepare("DELETE FROM photos WHERE product_id = ?").run(id);
+        db.prepare("DELETE FROM products WHERE id = ?").run(id);
+        bump(); return send(res, 200, { ok: true });
+      }
       const table = { expenses: "expenses", purchases: "purchases", sales: "sales", fotos: "photos" }[col];
       db.prepare(`DELETE FROM ${table} WHERE ${col === "fotos" ? "product_id" : "id"} = ?`).run(id);
       bump(); return send(res, 200, { ok: true });
@@ -282,6 +296,33 @@ async function route(req, res) {
     const cur = getSettings();
     saveSettings({ ...cur, name: str(b.name, 80) || cur.name, tagline: str(b.tagline, 120), phone: str(b.phone, 30), currency: str(b.currency, 3) || "MXN",
       openingCash: num(b.openingCash), fixedAssets: num(b.fixedAssets), liabilities: num(b.liabilities), storeUrl: str(b.storeUrl, 300) });
+    bump(); return send(res, 200, { ok: true });
+  }
+  // Listas de categorías y temporadas: agregar, renombrar (cambia también las prendas) y quitar (mueve sus prendas).
+  if (m === "POST" && p === "/api/listas") {
+    if (!needAdmin()) return;
+    const kind = b.kind === "seasons" ? "seasons" : b.kind === "categories" ? "categories" : null;
+    if (!kind) return fail(res, 400, "Lista desconocida");
+    const col = kind === "seasons" ? "season" : "category";
+    const st = getSettings(), list = [...st[kind]];
+    const name = str(b.name, 60), to = str(b.to, 60);
+    if (b.action === "add") {
+      if (!name) return fail(res, 400, "Escribe un nombre");
+      if (list.some(x => x.toLowerCase() === name.toLowerCase())) return fail(res, 400, "Ya existe");
+      list.push(name);
+    } else if (b.action === "rename") {
+      if (!name || !to) return fail(res, 400, "Escribe el nombre nuevo");
+      if (list.some(x => x.toLowerCase() === to.toLowerCase() && x !== name)) return fail(res, 400, "Ya existe una con ese nombre");
+      const i = list.indexOf(name); if (i >= 0) list[i] = to; else list.push(to);
+      db.prepare(`UPDATE products SET ${col} = ? WHERE ${col} = ?`).run(to, name);
+    } else if (b.action === "remove") {
+      db.prepare(`UPDATE products SET ${col} = ? WHERE ${col} = ?`).run(to, name);
+      const i = list.indexOf(name); if (i >= 0) list.splice(i, 1);
+    } else if (b.action === "move") {
+      const i = list.indexOf(name), j = i + (b.dir === "up" ? -1 : 1);
+      if (i >= 0 && j >= 0 && j < list.length) [list[i], list[j]] = [list[j], list[i]];
+    } else return fail(res, 400, "Acción desconocida");
+    saveSettings({ ...st, [kind]: list });
     bump(); return send(res, 200, { ok: true });
   }
   if (m === "POST" && p === "/api/publicar") { if (!needAdmin()) return; return send(res, 200, await publishStore()); }

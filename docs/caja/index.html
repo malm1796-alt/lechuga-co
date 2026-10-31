@@ -186,10 +186,11 @@ async function refreshApi(){
 let TOKEN=null;try{TOKEN=localStorage.getItem("lc-token")}catch{}
 const EXP_CATS=["Renta","Nómina","Luz y agua","Internet y teléfono","Publicidad","Empaque y bolsas","Comisiones bancarias","Transporte","Mantenimiento","Impuestos","Otros"];
 const DRAW="Retiro del dueño";
-const PROD_CATS=["Playeras","Blusas","Camisas","Pantalones","Vestidos","Chamarras","Ropa interior","Calzado","Accesorios","Infantil"];
+// Categorías y temporadas las administra el dueño desde Catálogo; vienen del servidor.
+const LISTS={categories:{one:"categoría",many:"Categorías",field:"category",ph:"Ej. Pijamas"},seasons:{one:"temporada",many:"Temporadas",field:"season",ph:"Ej. Primavera-Verano 2028"}};
+const listOf=kind=>S.settings[kind]||[];
 const METHODS=["Efectivo","Tarjeta","Transferencia"];
 const BRAND={denim:"#2f6b34",thread:"#a6cc45",chalk:"#f2f3e8",carbon:"#1c261d"};
-const SEASONS=["Primavera-Verano 2027","Otoño-Invierno 2026","Todo el año"];
 const NO_SEASON="Sin temporada";
 const DEFAULTS={name:"Lechuga & Co.",tagline:"Ropa fresca de temporada",phone:"",address:"",currency:"MXN",openingCash:0,fixedAssets:0,liabilities:0};
 const S={products:[],sales:[],expenses:[],purchases:[],settings:{...DEFAULTS},ready:false,me:null,version:0,err:null,users:null,pub:null};
@@ -449,8 +450,8 @@ function productForm(){
   <div class="form">
     <label class="full">Nombre<input id="p-name" required value="${esc(p.name)}" placeholder="Playera básica cuello redondo"></label>
     <label>Código / SKU<input id="p-sku" value="${esc(p.sku)}" placeholder="PLB-M-NEG"></label>
-    <label>Categoría<input id="p-cat" list="cats" value="${esc(p.category)}"><datalist id="cats">${PROD_CATS.map(c=>`<option>${c}</option>`).join("")}</datalist></label>
-    <label>Temporada<input id="p-season" list="seasons" value="${esc(p.season??(isNew?SEASONS[1]:""))}"><datalist id="seasons">${SEASONS.map(c=>`<option>${c}</option>`).join("")}</datalist></label>
+    <label>Categoría${listSelect("p-cat","categories",p.category??"")}</label>
+    <label>Temporada${listSelect("p-season","seasons",p.season??(isNew?listOf("seasons")[0]||"":""))}</label>
     <label>Talla<input id="p-size" value="${esc(p.size)}" placeholder="CH, M, G, 28…"></label>
     <label>Color<input id="p-color" value="${esc(p.color)}"></label>
     <label>Precio de venta<input id="p-price" inputmode="decimal" required value="${p.price??""}"></label>
@@ -461,6 +462,35 @@ function productForm(){
     <label class="full">Descripción<input id="p-desc" value="${esc(p.desc)}" placeholder="Algodón 100%, corte regular"></label>
   </div><div><button class="primary" type="submit">${isNew?"Guardar producto":"Guardar cambios"}</button></div></form>`;
 }
+function listSelect(id,kind,value){
+  const opts=listOf(kind).slice();if(value&&!opts.includes(value))opts.unshift(value);
+  return `<select id="${id}"><option value="">Sin ${LISTS[kind].one}</option>${opts.map(o=>`<option ${o===value?"selected":""}>${esc(o)}</option>`).join("")}</select>`;
+}
+function listCard(kind){
+  const L=LISTS[kind],list=listOf(kind),admin=isAdmin(),count=n=>S.products.filter(p=>p.active!==false&&p[L.field]===n).length;
+  const orphans=[...new Set(S.products.filter(p=>p.active!==false&&p[L.field]&&!list.includes(p[L.field])).map(p=>p[L.field]))];
+  const row=(n,i)=>{const key=kind+"|"+i,c=count(n);
+    if(UI.listRen===key)return `<div class="line" style="grid-template-columns:minmax(0,1fr) auto"><input id="rn-input" value="${esc(n)}" data-fresh="1"><div class="row" style="flex-wrap:nowrap"><button class="tiny primary" data-act="list-ren-save" data-k="${key}">Guardar</button><button class="tiny ghost" data-act="list-cancel">Cancelar</button></div></div>`;
+    if(UI.listDel===key)return `<div class="line" style="grid-template-columns:minmax(0,1fr)"><div style="display:grid;gap:8px"><b>¿Quitar «${esc(n)}»?</b>${c?`<label>Sus ${c} prenda${c===1?"":"s"} pasan a${listSelect("mv-select",kind,"").replace(`<option value="">Sin ${L.one}</option>`,`<option value="">Sin ${L.one}</option>`).replace(`>${esc(n)}</option>`,` disabled>${esc(n)}</option>`)}</label>`:`<span class="small muted">No tiene prendas.</span>`}
+      <div class="row"><button class="tiny danger" data-act="list-del-go" data-k="${key}">Quitar</button><button class="tiny ghost" data-act="list-cancel">Cancelar</button></div></div></div>`;
+    return `<div class="line" style="grid-template-columns:minmax(0,1fr) auto"><div><b>${esc(n)}</b> <span class="small muted">${c} prenda${c===1?"":"s"}</span></div>
+      ${admin?`<div class="row" style="flex-wrap:nowrap"><button class="tiny ghost" data-act="list-move" data-k="${key}|up" ${i?"":"disabled"} aria-label="Subir">↑</button><button class="tiny ghost" data-act="list-move" data-k="${key}|down" ${i<list.length-1?"":"disabled"} aria-label="Bajar">↓</button><button class="tiny" data-act="list-ren" data-k="${key}">Renombrar</button><button class="tiny ghost danger" data-act="list-del" data-k="${key}">Quitar</button></div>`:""}</div>`};
+  return `<div class="card" style="display:grid;gap:6px;align-content:start"><div class="row between"><h3>${L.many}</h3><span class="pill">${list.length}</span></div>
+    ${list.length?list.map(row).join(""):`<p class="muted small">Aún no hay ${L.many.toLowerCase()}.</p>`}
+    ${orphans.length?`<p class="small muted" style="margin:0">Prendas con ${L.one} fuera de la lista: ${orphans.map(esc).join(", ")}${admin?` <button class="tiny ghost" data-act="list-adopt" data-k="${kind}">Agregarlas a la lista</button>`:""}</p>`:""}
+    ${admin?`<form class="row" id="f-list-${kind}" style="flex-wrap:nowrap;margin-top:6px"><input id="nl-${kind}" placeholder="${L.ph}" aria-label="Nueva ${L.one}"><button type="submit">Agregar</button></form>
+      <p class="small muted" style="margin:0">Al renombrar se cambian también todas sus prendas. Al quitar eliges a dónde se mueven.</p>`:`<p class="small muted" style="margin:0">Solo el administrador agrega, renombra o quita ${L.many.toLowerCase()}.</p>`}</div>`;
+}
+function archivedSection(){
+  const arch=S.products.filter(p=>p.active===false).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  if(!arch.length)return "";
+  const used=new Set([...S.sales.flatMap(s=>(s.items||[]).map(i=>i.pid)),...S.purchases.map(p=>p.pid)]);
+  return `<div class="card" style="display:grid;gap:10px"><div class="row between"><h3>Prendas archivadas</h3><button class="tiny ghost" data-act="toggle-arch">${UI.showArch?"Ocultar":"Ver las "+arch.length}</button></div>
+    <p class="small muted" style="margin:0">No aparecen en la caja ni en la página web, pero sus ventas siguen en los reportes.</p>
+    ${UI.showArch?`<div class="tbl"><table><tbody>${arch.map(p=>`<tr><td><b>${esc(p.name)}</b> <span class="small muted">${esc([p.size,p.color].filter(Boolean).join(" · "))}</span></td>
+      <td><div class="row" style="flex-wrap:nowrap;justify-content:flex-end">${isAdmin()?`<button class="tiny" data-act="restore" data-k="${p.id}">Restaurar</button>${used.has(p.id)?`<span class="small muted" title="Tiene ventas o compras">Con historial</span>`:UI.confirm==="x"+p.id?`<button class="tiny danger" data-act="purge" data-k="${p.id}">Eliminar para siempre</button><button class="tiny ghost" data-act="no">No</button>`:`<button class="tiny ghost danger" data-act="ask" data-k="x${p.id}">Eliminar</button>`}`:""}</div></td></tr>`).join("")}</tbody></table></div>`:""}</div>`;
+}
+async function listOp(body){try{await api("POST","/api/listas",body);UI.listRen=UI.listDel=null;await load();return true}catch(e){toast(e.message);return false}}
 function vCatalogo(){
   const sm=stockMap(),ps=activeProducts();let inv=0,ret=0;ps.forEach(p=>{inv+=Math.max(0,sm[p.id]||0)*num(p.cost);ret+=Math.max(0,sm[p.id]||0)*num(p.price)});
   const noImg=ps.filter(p=>!p.photo&&!p.image).length;
@@ -468,6 +498,7 @@ function vCatalogo(){
   const zs={};ps.forEach(p=>{const k=p.season||NO_SEASON,z=zs[k]||(zs[k]={n:0,q:0,v:0,sold:0});z.n++;z.q+=Math.max(0,sm[p.id]||0);z.v+=Math.max(0,sm[p.id]||0)*num(p.cost);z.sold+=sold[p.id]||0});
   return `<div class="row between"><div><div class="eyebrow">${ps.length} productos</div><h2>Catálogo e inventario</h2></div><div class="row"><button class="primary" data-act="new-prod">+ Producto</button></div></div>
   ${UI.editing?productForm():""}
+  <div class="grid g2">${listCard("categories")}${listCard("seasons")}</div>
   <div class="kpis"><div class="kpi"><div class="eyebrow">Inventario a costo</div><div class="v">${money(inv)}</div></div><div class="kpi"><div class="eyebrow">Inventario a precio de venta</div><div class="v">${money(ret)}</div><div class="h">Ganancia potencial ${money(ret-inv)}</div></div><div class="kpi"><div class="eyebrow">Piezas en tienda</div><div class="v">${ps.reduce((x,p)=>x+Math.max(0,sm[p.id]||0),0)}</div></div></div>
   ${Object.keys(zs).length?`<div class="card" style="display:grid;gap:10px"><h3>Inventario por temporada</h3><p class="small muted" style="margin:0">Lo que queda de una temporada que ya terminó es dinero parado: conviene liquidarlo con descuento antes de que llegue la siguiente.</p><div class="tbl"><table><thead><tr><th>Temporada</th><th class="r">Modelos</th><th class="r">Vendidas</th><th class="r">En tienda</th><th class="r">Vendido</th><th class="r">Valor a costo</th></tr></thead><tbody>${Object.entries(zs).map(([n,z])=>`<tr><td><b>${esc(n)}</b></td><td class="r">${z.n}</td><td class="r">${z.sold}</td><td class="r">${z.q}</td><td class="r">${pct(z.sold+z.q?z.sold/(z.sold+z.q):NaN)}</td><td class="r">${money(z.v)}</td></tr>`).join("")}</tbody></table></div></div>`:""}
   <div class="card" style="display:grid;gap:10px"><div class="row between"><h3>Catálogo de WhatsApp Business</h3><span class="pill ${noImg?"warn":"good"}">${noImg?noImg+" sin foto":"Listo para subir"}</span></div>
@@ -475,7 +506,8 @@ function vCatalogo(){
     <div class="row"><button class="wa" data-act="export-cat">Descargar catálogo (.csv)</button><button data-act="show-cat">Ver y copiar</button></div></div>
   ${ps.length?`<div class="tbl"><table><thead><tr><th></th><th>Producto</th><th>Temporada</th><th>Categoría</th><th>Talla</th><th class="r">Precio</th><th class="r">Costo</th><th class="r">Margen</th><th class="r">Existencias</th><th></th></tr></thead><tbody>
   ${ps.map(p=>{const s=sm[p.id]||0,m=num(p.price)?(num(p.price)-num(p.cost))/num(p.price):NaN;return `<tr><td>${p.photo?`<img class="thumb" src="${esc(photoUrl(p))}" alt="" loading="lazy">`:`<div class="thumb"></div>`}</td><td><b>${esc(p.name)}</b>${p.example?' <span class="pill ex">Ejemplo</span>':""}<div class="small muted">${esc([p.sku,p.color].filter(Boolean).join(" · "))}</div></td><td>${esc(p.season||"")}</td><td>${esc(p.category||"")}</td><td>${esc(p.size||"")}</td><td class="r">${money(p.price)}</td><td class="r">${money(p.cost)}</td><td class="r">${pct(m)}</td><td class="r"><span class="pill ${s<=0?"bad":s<=2?"warn":"good"}">${s}</span></td>
-  <td><div class="row" style="flex-wrap:nowrap"><button class="tiny" data-act="edit-prod" data-k="${p.id}">Editar</button><a class="btn tiny wa" target="_blank" rel="noopener" href="${esc(waLink("",productText(p)))}">Compartir</a>${!isAdmin()?"":UI.confirm==="p"+p.id?`<button class="tiny danger" data-act="archive" data-k="${p.id}">¿Archivar?</button><button class="tiny ghost" data-act="no">No</button>`:`<button class="tiny ghost danger" data-act="ask" data-k="p${p.id}">Archivar</button>`}</div></td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">Tu catálogo está vacío. Toca <b>+ Producto</b> para agregar la primera prenda.</div>`}`;
+  <td><div class="row" style="flex-wrap:nowrap"><button class="tiny" data-act="edit-prod" data-k="${p.id}">Editar</button><a class="btn tiny wa" target="_blank" rel="noopener" href="${esc(waLink("",productText(p)))}">Compartir</a>${!isAdmin()?"":UI.confirm==="p"+p.id?`<button class="tiny danger" data-act="archive" data-k="${p.id}">¿Archivar?</button><button class="tiny ghost" data-act="no">No</button>`:`<button class="tiny ghost danger" data-act="ask" data-k="p${p.id}">Archivar</button>`}</div></td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">Tu catálogo está vacío. Toca <b>+ Producto</b> para agregar la primera prenda.</div>`}
+  ${archivedSection()}`;
 }
 
 function vMovs(){
@@ -694,6 +726,19 @@ document.addEventListener("click",async e=>{
     case "ask":UI.confirm=k;render();break;
     case "no":UI.confirm=null;render();break;
     case "archive":{const p=S.products.find(x=>x.id===k);UI.confirm=null;if(p)await put("products",k,{...strip(p),active:false});toast("Producto archivado");break}
+    case "restore":{const p=S.products.find(x=>x.id===k);if(p){try{await put("products",k,{...strip(p),active:true});toast("Prenda restaurada")}catch{}}break}
+    case "purge":{UI.confirm=null;try{await api("DELETE","/api/products/"+encodeURIComponent(k));await load();toast("Prenda eliminada")}catch(e){toast(e.message)}break}
+    case "toggle-arch":UI.showArch=!UI.showArch;render();break;
+    case "list-ren":UI.listRen=k;UI.listDel=null;render();break;
+    case "list-del":UI.listDel=k;UI.listRen=null;render();break;
+    case "list-cancel":UI.listRen=UI.listDel=null;render();break;
+    case "list-ren-save":{const [kind,i]=k.split("|"),name=listOf(kind)[i],to=$("#rn-input").value.trim();
+      if(!to||to===name){UI.listRen=null;render();break}if(await listOp({kind,action:"rename",name,to}))toast("Renombrada");break}
+    case "list-del-go":{const [kind,i]=k.split("|"),name=listOf(kind)[i],to=($("#mv-select")||{}).value||"";
+      if(await listOp({kind,action:"remove",name,to}))toast("Quitada de la lista");break}
+    case "list-move":{const [kind,i,dir]=k.split("|");await listOp({kind,action:"move",name:listOf(kind)[i],dir});break}
+    case "list-adopt":{const L=LISTS[k],list=listOf(k);const names=[...new Set(S.products.filter(p=>p.active!==false&&p[L.field]&&!list.includes(p[L.field])).map(p=>p[L.field]))];
+      for(const name of names)if(!(await listOp({kind:k,action:"add",name})))break;break}
     case "del":{const col=k[0]==="e"?"expenses":"purchases";UI.confirm=null;await del(col,k.slice(1));toast("Registro borrado");break}
     case "mov":UI.mov=k;UI.confirm=null;render();break;
     case "period":UI.period=k;UI.offset=0;render();break;
@@ -733,6 +778,8 @@ document.addEventListener("submit",async e=>{
     if(f.id==="f-login"){
       try{const r=await api("POST","/api/login",{username:v("l-user").trim(),password:v("l-pw")});TOKEN=r.token;try{localStorage.setItem("lc-token",TOKEN)}catch{}
         S.me=r.me;S.loginMsg="";lastKey="";await load()}catch(err){S.loginMsg=err.message;lastKey="";render()}}
+    if(f.id.startsWith("f-list-")){const kind=f.id.slice(7),name=v("nl-"+kind).trim();if(!name)return;
+      if(await listOp({kind,action:"add",name})){const el=$("#nl-"+kind);if(el)el.value="";toast("Agregada")}}
     if(f.id==="f-user"){
       try{await api("POST","/api/usuarios",{name:v("u-name").trim(),username:v("u-user").trim(),password:v("u-pw"),role:v("u-role")});f.reset();toast("Usuario creado");await loadUsers()}catch(err){toast(err.message)}}
     if(f.id==="f-prod"){const old=UI.editing==="new"?null:S.products.find(x=>x.id===UI.editing),id=old?old.id:uid();

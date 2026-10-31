@@ -9,3 +9,6 @@ node_modules/
 
 # Versión anterior (prototipo)
 caja-finanzas.html
+
+# Archivos que el usuario entrega para cargar
+entrada/
