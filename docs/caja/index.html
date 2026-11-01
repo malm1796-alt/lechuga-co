@@ -243,6 +243,11 @@ code.url{font-family:var(--f-mono);font-size:.82rem;background:var(--sunk);paddi
 .ptable td{vertical-align:middle}
 .ptable .pin{width:110px;text-align:right;padding:7px 9px}
 .ptable-warn td{background:var(--warn-soft)}
+.stk{display:flex;flex-wrap:wrap;gap:6px}
+.stk-c{display:grid;grid-template-columns:auto 48px;align-items:center;gap:4px;padding:3px 3px 3px 8px;border-radius:8px;background:var(--good-soft);font:700 .74rem var(--f-display);color:var(--ink)}
+.stk-c.low{background:var(--warn-soft)}
+.stk-c.zero{background:var(--sunk)}
+.stk-c input{padding:4px 6px;font-size:.85rem;text-align:right;background:var(--surface)}
 @keyframes pop{from{transform:scale(.97);opacity:.4}to{transform:none;opacity:1}}
 @keyframes flash{0%{background:var(--thread-soft)}100%{background:transparent}}
 @media (prefers-reduced-motion:reduce){.picker,.pos-done,.cline.flash{animation:none}.mcard:hover{transform:none}}
@@ -535,15 +540,15 @@ const groupIndex=()=>{const m=new Map();for(const g of colorGroups(activeProduct
 function priceTable(){
   const all=colorGroups(activeProducts()),q=(UI.cq||"").toLowerCase(),unpriced=all.filter(g=>!g.priced).length;
   const list=all.filter(g=>(!UI.onlyUnpriced||!g.priced)&&(!q||(g.name+" "+g.color+" "+g.category).toLowerCase().includes(q)));
-  return `<div class="card" style="display:grid;gap:12px"><div class="row between"><div><h3>Precios y existencias</h3><span class="small muted">Escribe el precio o el costo y se guarda solo, para todas las tallas de ese color. Para precios por talla, existencias o fotos usa el editor.</span></div>
+  return `<div class="card" style="display:grid;gap:12px"><div class="row between"><div><h3>Precios y existencias</h3><span class="small muted">Escribe precio, costo o piezas y se guarda solo. El precio y el costo aplican a todas las tallas de ese color; las piezas son por talla. Para precios distintos por talla o fotos usa el editor.</span></div>
       ${unpriced?`<span class="pill warn">${unpriced} sin precio</span>`:`<span class="pill good">Todo con precio</span>`}</div>
     <div class="row"><input id="cat-q" type="search" placeholder="Buscar modelo o color" value="${esc(UI.cq||"")}" data-fresh="1" style="max-width:320px">
       ${unpriced?`<button class="chip" data-act="only-unpriced" aria-pressed="${!!UI.onlyUnpriced}">Solo sin precio</button>`:""}</div>
-    ${list.length?`<div class="tbl"><table class="ptable"><thead><tr><th></th><th>Modelo y color</th><th>Tallas (piezas)</th><th class="r">Precio</th><th class="r">Costo</th><th class="r">Margen</th><th></th></tr></thead><tbody>
+    ${list.length?`<div class="tbl"><table class="ptable"><thead><tr><th></th><th>Modelo y color</th><th>Piezas por talla</th><th class="r">Precio</th><th class="r">Costo</th><th class="r">Margen</th><th></th></tr></thead><tbody>
     ${list.map((g,i)=>{const m=g.priced&&g.cost?(g.min-g.cost)/g.min:NaN;return `<tr class="${g.priced?"":"ptable-warn"}">
       <td>${g.photo?`<img class="thumb" src="${esc(photoUrl(g.photo))}" alt="" loading="lazy">`:`<div class="thumb"></div>`}</td>
       <td style="white-space:normal;min-width:180px"><b>${esc(g.name)}</b><div class="small muted">${esc([g.color,g.category,g.season].filter(Boolean).join(" · "))}</div></td>
-      <td style="white-space:normal;min-width:160px"><div class="row" style="gap:4px">${g.rows.map(r=>{const s=g.sm[r.id]||0;return `<span class="pill ${s<=0?"":s<=2?"warn":"good"}">${esc(r.size)} · ${s}</span>`}).join("")}</div></td>
+      <td style="white-space:normal;min-width:200px"><div class="stk">${g.rows.map((r,j)=>{const s=g.sm[r.id]||0;return `<label class="stk-c ${s<=0?"zero":s<=2?"low":""}"><span>${esc(r.size||"Única")}</span><input id="ps-${i}-${j}" data-ps="${esc(r.id)}" inputmode="numeric" value="${s}" aria-label="Piezas talla ${esc(r.size)} de ${esc(g.name+" "+g.color)}"></label>`}).join("")}</div></td>
       <td class="r"><input class="pin" id="pp-p-${i}" data-pp="price" data-k="${esc(g.key)}" inputmode="decimal" value="${g.priced?(g.min===g.max?g.min:""):""}" placeholder="${g.priced?"Varía por talla":"Poner precio"}" aria-label="Precio de ${esc(g.name+" "+g.color)}"></td>
       <td class="r"><input class="pin" id="pp-c-${i}" data-pp="cost" data-k="${esc(g.key)}" inputmode="decimal" value="${g.sameCost&&g.cost?g.cost:""}" placeholder="${g.sameCost?"Costo":"Varía"}" aria-label="Costo de ${esc(g.name+" "+g.color)}"></td>
       <td class="r" data-pm="${esc(g.key)}">${pct(m)}</td>
@@ -1326,6 +1331,16 @@ document.addEventListener("submit",async e=>{
   }catch(err){toast(err.message)}
 },true);
 
+// Piezas por talla: si la prenda nunca se ha vendido se corrige su carga inicial; si ya tiene movimientos queda como ajuste de inventario.
+async function saveRowStock(p,stock){
+  await api("POST","/api/catalogo/guardar",{products:[{id:p.id,name:p.name,sku:p.sku||"",category:p.category||"",season:p.season||"",size:p.size||"",color:p.color||"",price:num(p.price),cost:num(p.cost),desc:p.desc||"",image:p.image||"",active:p.active!==false,stock}],photos:[]});await load();
+}
+document.addEventListener("change",async e=>{
+  const t=e.target;if(!t.dataset||!t.dataset.ps)return;const p=S.products.find(x=>x.id===t.dataset.ps);if(!p)return;
+  const v=t.value.trim(),n=Number(v);if(v===""||!Number.isInteger(n)||n<0){toast("Escribe un número entero de piezas");t.value=stockMap()[p.id]||0;return}
+  if(n===(stockMap()[p.id]||0))return;
+  try{await saveRowStock(p,n);toast("Piezas guardadas: "+p.name+" "+(p.color||"")+" talla "+(p.size||"")+" → "+n)}catch(err){toast(err.message)}
+});
 // Precios rápidos: se guardan al salir del campo, para todas las tallas de ese color.
 document.addEventListener("change",async e=>{
   const t=e.target;if(!t.dataset||!t.dataset.pp)return;const gr=groupIndex().get(t.dataset.k);if(!gr||t.value.trim()==="")return;
