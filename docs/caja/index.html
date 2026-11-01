@@ -3,30 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#2f6b34">
+<meta name="theme-color" content="#101923">
 <meta name="robots" content="noindex">
 <title>Caja · Lechuga &amp; Co.</title>
-<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../marca/sello.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
-/* Layout: a working till. Sticky header + tab rail, then one task surface per tab. Stitched (dashed) lines echo a tailor's seam and mark "brand" moments. */
+/* Caja de Lechuga & Co.: encabezado fijo con pestañas y una superficie de trabajo por pestaña. Azul noche y dorado de la marca. */
 :root{
-  --bg:#f3f5ef; --surface:#ffffff; --sunk:#e7ece1; --ink:#1c261d; --muted:#5a6656; --line:#d5dccd;
-  --denim:#2f6b34; --on-denim:#ffffff; --thread:#6f8f14; --thread-soft:#eaf2d3;
+  --bg:#f5f4f0; --surface:#ffffff; --sunk:#ecebe5; --ink:#101923; --muted:#5f6872; --line:#e2e0d9;
+  --denim:#101923; --on-denim:#ffffff; --thread:#b88a33; --thread-soft:#f6ecd6;
   --good:#1d7f55; --good-soft:#dcf1e7; --bad:#b83434; --bad-soft:#f8dfdf; --warn:#9a6a00; --warn-soft:#fbefd2;
-  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
-  --f-body:"Figtree", "Segoe UI", system-ui, sans-serif;
+  --f-display:"Montserrat", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Poppins", "Segoe UI", system-ui, sans-serif;
   --f-mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
   --r:10px;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0f140f; --surface:#161d16; --sunk:#1d261d; --ink:#e7eee4; --muted:#9ba897; --line:#2a352a;
-  --denim:#8fd18a; --on-denim:#0f140f; --thread:#b9dc5c; --thread-soft:#28331a;
+  --bg:#0b1118; --surface:#131c26; --sunk:#1a2531; --ink:#eef0f2; --muted:#9aa4ae; --line:#26323f;
+  --denim:#d5a64b; --on-denim:#101923; --thread:#d5a64b; --thread-soft:#2d2716;
   --good:#5fd39d; --good-soft:#163829; --bad:#ff8a8a; --bad-soft:#3d1c1f; --warn:#f3c55a; --warn-soft:#3a3016; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0f140f; --surface:#161d16; --sunk:#1d261d; --ink:#e7eee4; --muted:#9ba897; --line:#2a352a;
-  --denim:#8fd18a; --on-denim:#0f140f; --thread:#b9dc5c; --thread-soft:#28331a;
+  --bg:#0b1118; --surface:#131c26; --sunk:#1a2531; --ink:#eef0f2; --muted:#9aa4ae; --line:#26323f;
+  --denim:#d5a64b; --on-denim:#101923; --thread:#d5a64b; --thread-soft:#2d2716;
   --good:#5fd39d; --good-soft:#163829; --bad:#ff8a8a; --bad-soft:#3d1c1f; --warn:#f3c55a; --warn-soft:#3a3016; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
@@ -169,7 +169,7 @@ code.url{font-family:var(--f-mono);font-size:.82rem;background:var(--sunk);paddi
 <div id="toast" class="toast" hidden></div>
 <div id="overlay" class="overlay" hidden></div>
 <script>
-const TABS=[["hoy","Hoy"],["vender","Vender"],["catalogo","Catálogo"],["movs","Gastos y compras"],["reportes","Estados financieros"],["conexiones","Conexiones"],["marca","Marca"],["ajustes","Ajustes"]];
+const TABS=[["hoy","Hoy"],["vender","Vender"],["catalogo","Catálogo"],["clientes","Clientes"],["movs","Gastos y compras"],["reportes","Estados financieros"],["conexiones","Conexiones"],["marca","Marca"],["ajustes","Ajustes"]];
 // Dónde está el servidor: en la PC de la tienda es la misma dirección; desde GitHub Pages es la del túnel,
 // que tunel.js publica en config.json cada vez que la PC enciende.
 const REMOTE=/github\.io$/i.test(location.hostname);
@@ -190,7 +190,7 @@ const DRAW="Retiro del dueño";
 const LISTS={categories:{one:"categoría",many:"Categorías",field:"category",ph:"Ej. Pijamas"},seasons:{one:"temporada",many:"Temporadas",field:"season",ph:"Ej. Primavera-Verano 2028"}};
 const listOf=kind=>S.settings[kind]||[];
 const METHODS=["Efectivo","Tarjeta","Transferencia"];
-const BRAND={denim:"#2f6b34",thread:"#a6cc45",chalk:"#f2f3e8",carbon:"#1c261d"};
+const BRAND={night:"#101923",gold:"#d5a64b",grey:"#b9bcc0",white:"#ffffff"};
 const NO_SEASON="Sin temporada";
 const DEFAULTS={name:"Lechuga & Co.",tagline:"Ropa fresca de temporada",phone:"",address:"",currency:"MXN",openingCash:0,fixedAssets:0,liabilities:0};
 const S={products:[],sales:[],expenses:[],purchases:[],settings:{...DEFAULTS},ready:false,me:null,version:0,err:null,users:null,pub:null};
@@ -225,7 +225,7 @@ async function api(method,path,body){
 }
 async function load(){
   const st=await api("GET","/api/estado");
-  Object.assign(S,{products:st.products,sales:st.sales,expenses:st.expenses,purchases:st.purchases,settings:{...DEFAULTS,...st.settings},me:st.me,version:st.version,ready:true,err:null});
+  Object.assign(S,{products:st.products,sales:st.sales,expenses:st.expenses,purchases:st.purchases,customers:st.customers||[],settings:{...DEFAULTS,...st.settings},me:st.me,version:st.version,ready:true,err:null});
   schedule();
 }
 const COLMAP={products:"products",sales:"sales",expenses:"expenses",purchases:"purchases",photos:"fotos"};
@@ -306,22 +306,23 @@ function range(kind,off){
 }
 
 /* ---------- brand ---------- */
-function initials(n){n=String(n||"");const w=n.trim().split(/\s+/).filter(x=>/^\p{L}/u.test(x)&&!/^(de|la|el|los|las|y|del)$/i.test(x));const a=(w[0]||"M")[0],b=w[1]?w[1][0]:"";return (b?a+(n.includes("&")?"&":"")+b:a).toUpperCase()}
-const iSize=i=>i.length>2?40:i.length>1?48:58;
-const TAG_OUT="M30 6 H90 L114 30 V138 a6 6 0 0 1 -6 6 H12 a6 6 0 0 1 -6 -6 V30 Z";
-const TAG_IN="M33 14 H87 L106 33 V132 a4 4 0 0 1 -4 4 H18 a4 4 0 0 1 -4 -4 V33 Z";
-function logoSVG(w,c){c=c||{};const bg=c.bg||BRAND.denim,fg=c.fg||BRAND.chalk,th=c.thread||BRAND.thread,i=initials(S.settings.name),two=i.length>1;
-  return `<svg viewBox="0 0 120 150" width="${w}" height="${Math.round(w*1.25)}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Logotipo de ${esc(S.settings.name)}"><path d="${TAG_OUT}" fill="${bg}"/><path d="${TAG_IN}" fill="none" stroke="${th}" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"/><circle cx="60" cy="33" r="7" fill="none" stroke="${fg}" stroke-width="3"/><text x="60" y="${two?103:106}" text-anchor="middle" font-family="Bricolage Grotesque, Segoe UI, sans-serif" font-weight="800" font-size="${iSize(i)}" letter-spacing="-2" fill="${fg}">${esc(i)}</text><path d="${LEAF}" fill="${th}"/><path d="M48 124 Q60 120 72 116" fill="none" stroke="${bg}" stroke-width="1.6" stroke-linecap="round"/></svg>`}
-const LEAF="M44 126 C52 112 70 108 78 112 C72 124 56 130 44 126 Z";
+// Logo principal: las montañas de «Lechuga & Co. · Ropa · Chamarras · Sudaderas». Insignia de trayectoria: el sello «Since 1990».
+const MTN_PATH="M4 52 33 15 47 33 61 5 96 52M20 52l13-16 9 11 19-25 23 30",MTN_SNOW="M27 23l6-8 5 6M55 13l6-8 7 9";
+function mountainSVG(w,c){c=c||{};const fg=c.fg||"#ffffff",snow=c.snow||BRAND.gold;
+  return `<svg viewBox="0 0 100 60" width="${w}" height="${Math.round(w*.6)}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lechuga &amp; Co."><path d="${MTN_PATH}" fill="none" stroke="${fg}" stroke-width="4" stroke-linejoin="round"/><path d="${MTN_SNOW}" fill="none" stroke="${snow}" stroke-width="4" stroke-linejoin="round"/></svg>`}
+// En la caja el logo va dentro de un círculo azul noche, como la foto de perfil de las redes.
+function logoSVG(w){return `<span style="display:grid;place-items:center;width:${w}px;height:${w}px;border-radius:50%;background:${BRAND.night};box-shadow:0 0 0 2px ${BRAND.gold}">${mountainSVG(Math.round(w*.62))}</span>`}
+function lockup(c){c=c||{};return `<span style="display:flex;align-items:center;gap:12px">${mountainSVG(54,c)}<span><span style="display:block;font:700 1.25rem 'Montserrat',sans-serif;letter-spacing:.14em;line-height:1">LECHUGA &amp; CO.</span><span style="display:block;font:600 .56rem 'Montserrat',sans-serif;letter-spacing:.3em;margin-top:6px;opacity:.8">ROPA · CHAMARRAS · SUDADERAS</span></span></span>`}
+function loadImg(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src})}
 async function avatarPNG(){
-  await document.fonts.ready;const cv=document.createElement("canvas");cv.width=cv.height=640;const x=cv.getContext("2d");
-  x.fillStyle=BRAND.chalk;x.fillRect(0,0,640,640);x.fillStyle=BRAND.denim;x.beginPath();x.arc(320,320,300,0,7);x.fill();
-  x.save();x.translate(320-120*1.55,320-150*1.55);x.scale(3.1/2,3.1/2);x.translate(0,0);
-  x.fillStyle=BRAND.chalk;x.fill(new Path2D(TAG_OUT));
-  x.setLineDash([5,4]);x.lineWidth=2;x.lineCap="round";x.strokeStyle=BRAND.thread;x.stroke(new Path2D(TAG_IN));x.setLineDash([]);
-  x.strokeStyle=BRAND.denim;x.lineWidth=3;x.beginPath();x.arc(60,33,7,0,7);x.stroke();
-  const i=initials(S.settings.name),two=i.length>1;x.fillStyle=BRAND.denim;x.textAlign="center";x.font=`800 ${iSize(i)}px "Bricolage Grotesque", sans-serif`;x.fillText(i,60,two?103:106);
-  x.fillStyle=BRAND.thread;x.fill(new Path2D(LEAF));x.restore();
+  await document.fonts.ready;const cv=document.createElement("canvas");cv.width=cv.height=1080;const x=cv.getContext("2d");
+  x.fillStyle="#ffffff";x.fillRect(0,0,1080,1080);
+  x.fillStyle=BRAND.night;x.beginPath();x.arc(540,540,520,0,7);x.fill();
+  x.strokeStyle=BRAND.gold;x.lineWidth=14;x.beginPath();x.arc(540,540,500,0,7);x.stroke();
+  x.save();x.translate(540-300,300);x.scale(6,6);x.lineJoin="round";x.lineWidth=4;
+  x.strokeStyle="#ffffff";x.stroke(new Path2D(MTN_PATH));x.strokeStyle=BRAND.gold;x.stroke(new Path2D(MTN_SNOW));x.restore();
+  x.fillStyle="#ffffff";x.textAlign="center";x.font=`700 92px "Montserrat", sans-serif`;
+  if("letterSpacing" in x)x.letterSpacing="10px";x.fillText("LECHUGA & CO.",540,760);
   return new Promise(r=>cv.toBlob(r,"image/png"));
 }
 
@@ -346,8 +347,8 @@ function catalogCSV(){
 function ticketText(s){
   const st=S.settings;let t=`*${st.name}*\nTicket ${folio(s.ts)} · ${fdate(s.ts,{day:"2-digit",month:"2-digit",year:"numeric"})} ${ftime(s.ts)}\n\n`;
   (s.items||[]).forEach(i=>t+=`${i.qty} x ${i.name}${i.size?" ("+i.size+")":""}  ${money(i.qty*i.price)}\n`);
-  if(s.subtotal>s.total)t+=`\nSubtotal: ${money(s.subtotal)}\nDescuento: -${money(s.subtotal-s.total)}`;
-  t+=`\n*Total: ${money(s.total)}*\nPago: ${s.method}\n\n¡Gracias por tu compra${s.customer?", "+s.customer:""}! 🥬`;
+  if(s.subtotal>s.total)t+=`\nSubtotal: ${money(s.subtotal)}\n${s.promo==="primera"?"Descuento (primera compra)":"Descuento"}: -${money(s.subtotal-s.total)}`;
+  t+=`\n*Total: ${money(s.total)}*\nPago: ${s.method}\n\n¡Gracias por tu compra${s.customer?", "+s.customer:""}! 🧥`;
   return t;
 }
 function productText(p){const st=S.settings;return `*${p.name}*${p.season?"\nTemporada: "+p.season:""}${p.size?"\nTalla: "+p.size:""}${p.color?"\nColor: "+p.color:""}\nPrecio: ${money(p.price)}${p.desc?"\n"+p.desc:""}${p.image?"\n"+p.image:""}\n\n${st.name} · Pregunta por tu talla 👕`}
@@ -369,7 +370,7 @@ function render(){
   if(S.err)h+=`<div class="banner">${esc(S.err)} La app reintenta cada 15 segundos.</div>`;
   if(!S.ready){$("#main").innerHTML=h+`<div class="empty">Conectando con la PC de la tienda…</div>`;return}
   if(S.products.some(p=>p.example)||S.sales.some(s=>s.example))h+=`<div class="banner">Estás viendo <b>datos de ejemplo</b> para practicar. ${isAdmin()?'Bórralos en <a href="#" data-act="tab" data-k="ajustes">Ajustes</a>':"Pide al administrador que los borre"} antes de empezar a vender.</div>`;
-  h+=({hoy:vHoy,vender:vVender,catalogo:vCatalogo,movs:vMovs,reportes:vReportes,conexiones:vConexiones,marca:vMarca,ajustes:vAjustes}[UI.tab])();
+  h+=({hoy:vHoy,vender:vVender,catalogo:vCatalogo,clientes:vClientes,movs:vMovs,reportes:vReportes,conexiones:vConexiones,marca:vMarca,ajustes:vAjustes}[UI.tab])();
   $("#main").innerHTML=h;restore(c);
 }
 
@@ -423,7 +424,7 @@ function vVender(){
   const sm=stockMap(),q=UI.q.toLowerCase();
   const ps=activeProducts().filter(p=>(!UI.cat||p.category===UI.cat)&&(!UI.season||(p.season||NO_SEASON)===UI.season)&&(!q||[p.name,p.sku,p.size,p.color,p.season].join(" ").toLowerCase().includes(q)));
   const cats=[...new Set(activeProducts().map(p=>p.category).filter(Boolean))],seas=[...new Set(activeProducts().map(p=>p.season||NO_SEASON))];
-  const sub=UI.cart.reduce((x,i)=>x+i.qty*i.price,0),disc=Math.min(sub,Math.max(0,num(UI.discount))),tot=sub-disc;
+  const {sub,disc,promo,promoDisc,tot}=cartTotals();
   return `<div class="pos"><div style="display:grid;gap:12px;min-width:0">
     <div class="row between"><h2>Vender</h2><span class="muted small">${ps.length} producto${ps.length===1?"":"s"}</span></div>
     <input id="pos-q" type="search" placeholder="Buscar por nombre, código, talla o color" value="${esc(UI.q)}" data-fresh="1">
@@ -436,9 +437,11 @@ function vVender(){
     <div class="form"><label>Descuento ($)<input id="pos-desc" inputmode="decimal" value="${esc(UI.discount||"")}" placeholder="0" data-fresh="1"></label>
       <label>Forma de pago<select id="pos-method">${METHODS.map(m=>`<option>${m}</option>`).join("")}</select></label>
       <label>Canal<select id="pos-channel"><option>Tienda</option><option>WhatsApp</option></select></label>
-      <label>Cliente (opcional)<input id="pos-cust" placeholder="Nombre"></label>
-      <label class="full">WhatsApp del cliente (opcional)<input id="pos-phone" inputmode="tel" placeholder="10 dígitos"></label></div>
-    ${disc?`<div class="row between small"><span>Subtotal</span><span class="num">${money(sub)}</span></div><div class="row between small"><span>Descuento</span><span class="num neg-v">-${money(disc)}</span></div>`:""}
+      <label class="full">WhatsApp del cliente (opcional)<input id="pos-phone" inputmode="tel" placeholder="10 dígitos" value="${esc(UI.phone||"")}" data-fresh="1"></label>
+      <label class="full">Cliente (opcional)<input id="pos-cust" placeholder="${esc(promo&&promo.c?promo.c.name:"Nombre")}"></label></div>
+    ${promo?promo.ok?`<label class="banner" style="background:var(--good-soft);color:var(--good);display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" id="pos-promo" style="width:auto" ${UI.usePromo!==false?"checked":""} data-fresh="1"> ${esc(promo.msg)} (−${money(promo.disc)})</label>`
+      :`<div class="banner" style="background:var(--sunk);color:var(--muted)">${esc(promo.msg)}</div>`:""}
+    ${disc||promoDisc?`<div class="row between small"><span>Subtotal</span><span class="num">${money(sub)}</span></div>${disc?`<div class="row between small"><span>Descuento</span><span class="num neg-v">-${money(disc)}</span></div>`:""}${promoDisc?`<div class="row between small"><span>Primera compra (${promo.pct}%)</span><span class="num neg-v">-${money(promoDisc)}</span></div>`:""}`:""}
     <div class="total"><span>Total</span><span>${money(tot)}</span></div>
     <button class="primary" style="justify-content:center;padding:12px;font-size:1rem" data-act="checkout" ${UI.cart.length?"":"disabled"}>Cobrar ${money(tot)}</button>
   </aside></div>`;
@@ -599,27 +602,32 @@ function reportCSV(){
 }
 
 function vMarca(){
-  const st=S.settings,i=initials(st.name);
-  const msgs=[`¡Hola! 👋 Bienvenido a *${st.name}*. ¿Buscas algo de la temporada? Te mando fotos y tallas disponibles.`,`🥬 Recién cosechada: llegó la nueva temporada. Mira el catálogo aquí en WhatsApp y aparta tu talla.`,`Fin de temporada en ${st.name}: lo que queda de la colección pasada con descuento. ¡Hasta agotar existencias!`];
-  const sw=[["Hoja",BRAND.denim,"Color principal: logo, botones, encabezados"],["Brote",BRAND.thread,"Acentos, la hoja del logo y costuras; nunca para texto"],["Lino",BRAND.chalk,"Fondos de etiquetas, bolsas y tickets"],["Raíz",BRAND.carbon,"Texto"]];
+  const st=S.settings,pr=st.promo||{};
+  const msgs=[`¡Hola! 👋 Bienvenido a *${st.name}*. ¿Buscas algo de la colección de invierno? Te mando fotos y tallas disponibles.`,
+    `❄ Nueva colección de invierno ya disponible: chamarras, sudaderas y camisas de franela. Mira el catálogo aquí en WhatsApp y aparta tu talla.`,
+    pr.active?`Regístrate en nuestra página y obtén ${pr.percent}% en tu primera compra desde $${Number(pr.minimum||0).toLocaleString("es-MX")}. ${st.storeUrl||""}`:`Gracias por tu compra en ${st.name}. Desde 1990 vistiendo a México.`];
+  const sw=[["Azul noche",BRAND.night,"Fondos, encabezados, botones principales"],["Dorado",BRAND.gold,"Acentos, precios, botones de acción. Nunca texto largo"],["Gris",BRAND.grey,"Textos secundarios y líneas"],["Blanco",BRAND.white,"Fondos de producto y texto sobre azul noche"]];
   return `
-  <div class="card brandhero"><div>${logoSVG(132)}</div><div style="display:grid;gap:10px;min-width:0"><div class="eyebrow">Identidad de marca</div><div class="wordmark">${esc(st.name)}</div><div class="seam" style="max-width:220px"></div><p style="margin:0;font-size:1.05rem;max-width:52ch">${esc(st.tagline||"")}</p>
-    <div class="row"><button class="primary" data-act="dl-logo">Descargar logo (.svg)</button><button data-act="dl-avatar">Foto de perfil para WhatsApp (.png)</button></div></div></div>
-  <div class="card" style="display:grid;gap:10px"><h3>La idea</h3><p style="margin:0;max-width:68ch">El logo es una <b>etiqueta de ropa</b>, la que cuelga de cada prenda, con su ojillo arriba y una costura punteada alrededor. Al centro va el monograma «${esc(i)}» y abajo brota una <b>hoja de lechuga</b>: lo fresco, lo que cambia con cada temporada. El verde hoja es el color de la casa y el verde brote marca lo nuevo. Funciona chico (ícono de WhatsApp, etiqueta de precio) y grande (letrero, bolsa).</p><p style="margin:0;max-width:68ch" class="muted">Calendario sugerido: <b>Primavera-Verano</b> entra en febrero y se liquida en julio; <b>Otoño-Invierno</b> entra en agosto y se liquida en enero. Cada lanzamiento usa el mensaje «Recién cosechada» y cada cierre el de «Fin de temporada».</p></div>
-  <div><h3 style="margin-bottom:10px">Versiones del logo</h3><div class="lockups">
-    <div class="lockup" style="background:${BRAND.chalk};color:${BRAND.carbon}">${logoSVG(48)}<div><div class="wm">${esc(st.name)}</div><div class="small" style="opacity:.7">Versión principal</div></div></div>
-    <div class="lockup" style="background:${BRAND.denim};color:${BRAND.chalk}">${logoSVG(48,{bg:BRAND.chalk,fg:BRAND.denim})}<div><div class="wm">${esc(st.name)}</div><div class="small" style="opacity:.7">Sobre fondo oscuro</div></div></div>
-    <div class="lockup" style="background:#ffffff;color:#000000">${logoSVG(48,{bg:"#000000",fg:"#ffffff",thread:"#ffffff"})}<div><div class="wm">${esc(st.name)}</div><div class="small" style="opacity:.7">Una tinta (sellos, tickets)</div></div></div>
-  </div></div>
-  <div><h3 style="margin-bottom:10px">Colores</h3><div class="swatches">${sw.map(([n,h,u])=>`<div class="sw"><div class="c" style="background:${h}"></div><div class="t"><b>${n}</b> <span class="num muted">${h}</span><div class="muted">${u}</div></div></div>`).join("")}</div></div>
+  <div class="card brandhero" style="background:${BRAND.night};color:#fff;border-color:${BRAND.night}"><div>${mountainSVG(150)}</div><div style="display:grid;gap:10px;min-width:0">
+    <div class="eyebrow" style="color:${BRAND.gold}">Identidad de marca</div><div>${lockup()}</div>
+    <p style="margin:0;font-size:1.05rem;max-width:52ch;color:#dfe4e8">Ropa, chamarras y sudaderas. American Clothing desde 1990.</p>
+    <div class="row"><button class="primary" style="background:${BRAND.gold};color:${BRAND.night};border-color:${BRAND.gold}" data-act="dl-logo">Descargar logo (.svg)</button><button data-act="dl-avatar">Foto de perfil para redes (.png)</button><button data-act="dl-sello">Sello Since 1990 (.png)</button></div></div></div>
   <div class="grid g2">
-    <div class="card" style="display:grid;gap:8px"><h3>Tipografía</h3><div style="font-family:var(--f-display);font-weight:800;font-size:2rem;letter-spacing:-.02em;line-height:1">Bricolage Grotesque</div><div class="muted small">Títulos, letreros, precios grandes</div><div class="seam"></div><div style="font-size:1.1rem">Figtree para todo el texto: descripciones, mensajes y tickets.</div><div class="muted small">Ambas son gratuitas en Google Fonts.</div></div>
-    <div class="card" style="display:grid;gap:10px"><h3>Cómo hablamos por WhatsApp</h3><p class="small muted" style="margin:0">Cercanos, de tú, breves. Un emoji como máximo por mensaje.</p>${msgs.map(m=>`<div class="msg">${esc(m)}</div>`).join("")}</div>
+    <div class="card" style="display:grid;gap:10px"><h3>Logo principal: las montañas</h3><p style="margin:0;max-width:62ch">Dos picos nevados: el frío, el aire libre y la resistencia de las prendas. Va con «LECHUGA &amp; CO.» y el lema «Ropa · Chamarras · Sudaderas». Úsalo en la página, el encabezado de la caja, las etiquetas y la foto de perfil.</p></div>
+    <div class="card" style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center"><img src="../marca/sello.png" alt="Sello Lechuga &amp; Co. Since 1990" width="110" height="110" style="border-radius:50%"><div><h3>Insignia: Since 1990</h3><p style="margin:6px 0 0">El sello circular cuenta la trayectoria. Va en «Nosotros», el pie de la página, bolsas y notas de remisión, no como logo principal.</p></div></div>
   </div>
+  <div><h3 style="margin-bottom:10px">Versiones del logo</h3><div class="lockups">
+    <div class="lockup" style="background:${BRAND.night};color:#fff">${lockup()}</div>
+    <div class="lockup" style="background:#ffffff;color:${BRAND.night};border:1px solid var(--line)">${lockup({fg:BRAND.night})}</div>
+    <div class="lockup" style="background:${BRAND.gold};color:${BRAND.night}">${lockup({fg:BRAND.night,snow:"#ffffff"})}</div>
+  </div></div>
+  <div><h3 style="margin-bottom:10px">Colores</h3><div class="swatches">${sw.map(([n,h,u])=>`<div class="sw"><div class="c" style="background:${h};border-bottom:1px solid var(--line)"></div><div class="t"><b>${n}</b> <span class="num muted">${h}</span><div class="muted">${u}</div></div></div>`).join("")}</div></div>
   <div class="grid g2">
-    <div class="card" style="display:grid;gap:10px"><h3>Etiqueta de precio</h3><div style="display:flex;gap:16px;align-items:center;background:${BRAND.chalk};color:${BRAND.carbon};border-radius:8px;padding:16px;border:2px dashed ${BRAND.thread}">${logoSVG(56)}<div><div style="font-family:var(--f-display);font-weight:800;font-size:1.6rem">$349</div><div class="small">Suéter tejido · Talla M</div><div class="num small">OI26 · SUE-M-VER</div></div></div></div>
-    <div class="card" style="display:grid;gap:10px"><h3>Ticket</h3><div class="ticket">${esc(`*${st.name}*\nTicket #K3P9QZ · 31/10/2026 13:45\n\n1 x Suéter tejido (M)  $349.00\n1 x Chamarra acolchada (G)  $699.00\n*Total: $1,048.00*\nPago: Tarjeta\n\n¡Gracias por tu compra! 🥬`)}</div></div>
-  </div>`;
+    <div class="card" style="display:grid;gap:8px"><h3>Tipografía</h3><div style="font:800 2rem 'Montserrat',sans-serif;letter-spacing:.04em;line-height:1;text-transform:uppercase">Montserrat</div><div class="muted small">Títulos, letreros y portadas, en mayúsculas y con espacio entre letras.</div><div class="seam" style="border-color:${BRAND.gold}"></div><div style="font:400 1.1rem 'Poppins',sans-serif">Poppins para los textos: descripciones, mensajes y tickets.</div><div class="muted small">Ambas son gratuitas en Google Fonts.</div></div>
+    <div class="card" style="display:grid;gap:10px"><h3>Cómo hablamos por WhatsApp</h3><p class="small muted" style="margin:0">Cercanos, de tú y breves. Un emoji como máximo por mensaje.</p>${msgs.map(m=>`<div class="msg">${esc(m)}</div>`).join("")}</div>
+  </div>
+  <div class="card" style="display:grid;gap:10px"><h3>Kit para redes sociales</h3><p class="small muted" style="margin:0">Tamaños: portada de Facebook 820×360, post o reel de Instagram y TikTok 1080×1350 o 1080×1920, estado de WhatsApp 1080×1920. Íconos de destacados: Chamarras, Sudaderas, Promociones, Envíos y Tallas.</p>
+    <img src="../marca/kit-redes.png" alt="Referencia del kit de redes de Lechuga &amp; Co." style="border-radius:8px;border:1px solid var(--line)" loading="lazy" onerror="this.remove()"></div>`;
 }
 
 function vAjustes(){
@@ -637,6 +645,13 @@ function vAjustes(){
     <label>Mobiliario y equipo (anaqueles, maniquíes, terminal)<input id="s-fa" inputmode="decimal" value="${st.fixedAssets||""}" placeholder="0"></label>
     <label>Deudas (proveedores, préstamos)<input id="s-liab" inputmode="decimal" value="${st.liabilities||""}" placeholder="0"></label>
     <label class="full">Dirección de la página web (GitHub Pages)<input id="s-url" value="${esc(st.storeUrl)}" placeholder="https://tu-usuario.github.io/lechuga-co/"></label>
+    <label>Ciudad (pie de la página web)<input id="s-city" value="${esc(st.city||"")}"></label>
+    <p class="full small muted" style="margin:0"><b>Promoción de primera compra</b>: un solo descuento por cliente registrado, en su primera compra.</p>
+    <label style="display:flex;gap:8px;align-items:center;align-self:end"><input id="s-pr-on" type="checkbox" style="width:auto" ${(st.promo||{}).active?"checked":""}> Promoción activa</label>
+    <label>Nombre de la promoción<input id="s-pr-title" value="${esc((st.promo||{}).title||"")}"></label>
+    <label>Descuento (%)<input id="s-pr-pct" inputmode="decimal" value="${esc((st.promo||{}).percent??"")}"></label>
+    <label>Compra mínima ($)<input id="s-pr-min" inputmode="decimal" value="${esc((st.promo||{}).minimum??"")}"></label>
+    <label>Válida hasta<input id="s-pr-end" type="date" value="${esc((st.promo||{}).end||"")}"></label>
     <div style="align-self:end"><button class="primary" type="submit">Guardar ajustes</button></div>
   </form>
   <div class="card" style="display:grid;gap:12px"><div class="row between"><h3>Usuarios</h3><span class="small muted">Tú decides quién entra a la caja</span></div>
@@ -666,6 +681,25 @@ function vLogin(){
   <p class="small muted">¿No tienes usuario? Pídeselo al administrador.</p></div>`;
 }
 
+function vClientes(){
+  const pr=S.settings.promo||{},q=(UI.clq||"").toLowerCase(),all=S.customers||[];
+  const bought={};S.sales.forEach(s=>{const k=phoneKey(s.phone);if(k){const b=bought[k]||(bought[k]={n:0,v:0});b.n++;b.v+=s.total}});
+  const list=all.filter(c=>!q||(c.name+" "+c.phone+" "+(c.email||"")).toLowerCase().includes(q));
+  const used=all.filter(c=>promoUsed(c.phone)).length,web=all.filter(c=>c.source==="web").length;
+  return `<div class="row between"><div><div class="eyebrow">${all.length} registrados</div><h2>Clientes</h2></div></div>
+  <div class="kpis"><div class="kpi hero"><div class="eyebrow">Promoción de primera compra</div><div class="v">${pr.active?pr.percent+"%":"Apagada"}</div><div class="h">${pr.active?`Desde ${money(pr.minimum)}${pr.end?" · hasta el "+fdate(new Date(pr.end+"T12:00")):""}`:"Actívala en Ajustes"}</div></div>
+    <div class="kpi"><div class="eyebrow">Registrados en la página</div><div class="v">${web}</div><div class="h">${all.length-web} en la caja</div></div>
+    <div class="kpi"><div class="eyebrow">Ya usaron su descuento</div><div class="v">${used}</div><div class="h">${all.length-used} pendientes de su primera compra</div></div></div>
+  <form class="card form" id="f-cust"><label>Nombre<input id="c-name" required autocomplete="off"></label><label>WhatsApp<input id="c-phone" required inputmode="tel" placeholder="10 dígitos"></label>
+    <label>Correo (opcional)<input id="c-mail" type="email"></label><div style="align-self:end"><button class="primary" type="submit">Registrar cliente</button></div>
+    <p class="full small muted" style="margin:0">Pídele permiso al cliente antes de guardar sus datos. Solo se usan para su descuento y para avisarle de novedades.</p></form>
+  <input id="cl-q" type="search" placeholder="Buscar por nombre o WhatsApp" value="${esc(UI.clq||"")}" data-fresh="1">
+  ${list.length?`<div class="tbl"><table><thead><tr><th>Cliente</th><th>WhatsApp</th><th>Registro</th><th class="r">Compras</th><th>Descuento</th><th></th></tr></thead><tbody>${list.map(c=>{const b=bought[c.phone]||{n:0,v:0};return `<tr><td><b>${esc(c.name)}</b>${c.email?`<div class="small muted">${esc(c.email)}</div>`:""}</td><td class="num">${esc(c.phone)}</td>
+    <td>${fdate(c.createdAt)} <span class="pill">${c.source==="web"?"Página":"Caja"}</span></td><td class="r">${b.n?`${b.n} · ${money(b.v)}`:"—"}</td>
+    <td>${promoUsed(c.phone)?'<span class="pill">Usado</span>':'<span class="pill good">Disponible</span>'}</td>
+    <td><div class="row" style="flex-wrap:nowrap"><button class="tiny" data-act="sell-to" data-k="${esc(c.phone)}">Venderle</button>${!isAdmin()?"":UI.confirm==="c"+c.id?`<button class="tiny danger" data-act="del-cust" data-k="${c.id}">Borrar</button><button class="tiny ghost" data-act="no">No</button>`:`<button class="tiny ghost danger" data-act="ask" data-k="c${c.id}">Borrar</button>`}</div></td></tr>`}).join("")}</tbody></table></div>`
+    :`<div class="empty">${all.length?"Nadie coincide con la búsqueda.":"Aún no hay clientes registrados. Se registran desde la página web o aquí mismo."}</div>`}`;
+}
 function vConexiones(){
   const st=S.settings,ps=activeProducts(),withPhoto=ps.filter(p=>p.photo).length,web=st.storeUrl;
   const remote=/github\.io$/i.test(location.hostname);
@@ -695,12 +729,31 @@ function vConexiones(){
 }
 
 /* ---------- actions ---------- */
+// Promoción de primera compra: la caja la calcula para mostrarla y el servidor la vuelve a validar al guardar.
+const phoneKey=p=>{let d=String(p||"").replace(/\D/g,"");if(d.length===13&&d.startsWith("521"))d=d.slice(3);else if(d.length===12&&d.startsWith("52"))d=d.slice(2);return d};
+const promoUsed=k=>S.sales.some(s=>s.promo==="primera"&&phoneKey(s.phone)===k);
+function promoFor(phone,sub){
+  const pr=S.settings.promo||{},k=phoneKey(phone);
+  if(!pr.active||k.length!==10)return null;
+  const c=(S.customers||[]).find(x=>x.phone===k);
+  if(!c)return {ok:false,msg:`No está registrado. Regístralo en Clientes para darle ${pr.percent}% en su primera compra.`};
+  if(pr.end&&dayKey(Date.now())>pr.end)return {ok:false,c,msg:`La promoción venció el ${fdate(new Date(pr.end+"T12:00"))}.`};
+  if(promoUsed(k))return {ok:false,c,msg:`${c.name} ya usó su descuento de primera compra.`};
+  if(sub<num(pr.minimum))return {ok:false,c,msg:`${c.name} tiene ${pr.percent}% en su primera compra desde ${money(pr.minimum)}. Le faltan ${money(pr.minimum-sub)}.`};
+  return {ok:true,c,pct:num(pr.percent),disc:Math.round(sub*num(pr.percent))/100,msg:`Primera compra de ${c.name}: ${pr.percent}% de descuento`};
+}
+function cartTotals(){
+  const sub=UI.cart.reduce((x,i)=>x+i.qty*i.price,0),disc=Math.min(sub,Math.max(0,num(UI.discount)));
+  const promo=UI.cart.length?promoFor(UI.phone,sub):null,promoDisc=promo&&promo.ok&&UI.usePromo!==false?promo.disc:0;
+  return {sub,disc,promo,promoDisc,tot:Math.max(0,Math.round((sub-disc-promoDisc)*100)/100)};
+}
 async function checkout(){
   if(!UI.cart.length)return;
-  const sub=UI.cart.reduce((x,i)=>x+i.qty*i.price,0),disc=Math.min(sub,Math.max(0,num($("#pos-desc").value))),ts=Date.now();
-  const sale={ts,items:UI.cart.map(i=>({...i})),subtotal:sub,total:Math.round((sub-disc)*100)/100,method:$("#pos-method").value,channel:$("#pos-channel").value,customer:$("#pos-cust").value.trim(),phone:$("#pos-phone").value.trim()};
+  const {sub,promo,promoDisc,tot}=cartTotals(),ts=Date.now();
+  const sale={ts,items:UI.cart.map(i=>({...i})),subtotal:sub,total:tot,method:$("#pos-method").value,channel:$("#pos-channel").value,
+    customer:$("#pos-cust").value.trim()||(promo&&promo.c?promo.c.name:""),phone:UI.phone||"",promo:promoDisc?"primera":""};
   const btn=document.querySelector('[data-act="checkout"]');if(btn)btn.disabled=true;
-  try{await put("sales",uid(),sale);UI.lastSale=sale;UI.cart=[];UI.discount=0;toast("Venta registrada: "+money(sale.total));render()}catch{if(btn)btn.disabled=false}
+  try{await put("sales",uid(),sale);UI.lastSale=sale;UI.cart=[];UI.discount=0;UI.phone="";UI.usePromo=true;toast("Venta registrada: "+money(sale.total));render()}catch{if(btn)btn.disabled=false}
 }
 document.addEventListener("click",async e=>{
   const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,k=b.dataset.k;
@@ -729,6 +782,8 @@ document.addEventListener("click",async e=>{
     case "restore":{const p=S.products.find(x=>x.id===k);if(p){try{await put("products",k,{...strip(p),active:true});toast("Prenda restaurada")}catch{}}break}
     case "purge":{UI.confirm=null;try{await api("DELETE","/api/products/"+encodeURIComponent(k));await load();toast("Prenda eliminada")}catch(e){toast(e.message)}break}
     case "toggle-arch":UI.showArch=!UI.showArch;render();break;
+    case "sell-to":UI.phone=k;UI.usePromo=true;UI.tab="vender";UI.lastSale=null;render();scrollTo(0,0);break;
+    case "del-cust":{UI.confirm=null;try{await api("DELETE","/api/clientes/"+k);await load();toast("Cliente borrado")}catch(e){toast(e.message)}break}
     case "list-ren":UI.listRen=k;UI.listDel=null;render();break;
     case "list-del":UI.listDel=k;UI.listRen=null;render();break;
     case "list-cancel":UI.listRen=UI.listDel=null;render();break;
@@ -750,8 +805,9 @@ document.addEventListener("click",async e=>{
       S.sales.slice().sort((a,b)=>a.ts-b.ts).forEach(s=>(s.items||[]).forEach(i=>rows.push([dayKey(s.ts),ftime(s.ts),folio(s.ts),i.name,i.size,i.qty,i.price,i.cost,s.total,s.method,s.channel,s.customer])));
       offerFile("ventas.csv",toCSV(rows),"Ventas");break}
     case "backup":offerFile("respaldo-tienda.json",JSON.stringify({settings:S.settings,products:S.products,sales:S.sales,expenses:S.expenses,purchases:S.purchases},null,1),"Respaldo");break;
-    case "dl-logo":offerFile("logo.svg",logoSVG(600));break;
-    case "dl-avatar":{const blob=await avatarPNG();if(blob)offerFile("perfil-whatsapp.png",blob);break}
+    case "dl-logo":offerFile("lechuga-co-logo.svg",mountainSVG(600,{fg:BRAND.night}));break;
+    case "dl-sello":{try{const b=await (await fetch("../marca/sello.png")).blob();offerFile("lechuga-co-sello.png",b)}catch{toast("No se pudo descargar el sello")}break}
+    case "dl-avatar":{const blob=await avatarPNG();if(blob)offerFile("lechuga-co-perfil.png",blob);break}
     case "del-examples":{UI.confirm=null;try{await api("DELETE","/api/ejemplos");await load();toast("Datos de ejemplo borrados")}catch(e){toast(e.message)}break}
     case "logout":{try{await api("POST","/api/logout")}catch{}logout();break}
     case "del-photo":{try{await del("photos",k);toast("Foto quitada")}catch{}break}
@@ -769,6 +825,9 @@ document.addEventListener("click",async e=>{
 document.addEventListener("input",e=>{
   if(e.target.id==="pos-q"){UI.q=e.target.value;render()}
   if(e.target.id==="pos-desc"){UI.discount=e.target.value;render()}
+  if(e.target.id==="pos-phone"){UI.phone=e.target.value;render()}
+  if(e.target.id==="pos-promo"){UI.usePromo=e.target.checked;render()}
+  if(e.target.id==="cl-q"){UI.clq=e.target.value;render()}
 });
 document.addEventListener("submit",async e=>{
   e.preventDefault();const f=e.target,v=id=>(document.getElementById(id)||{}).value||"",btn=f.querySelector('[type="submit"]');
@@ -780,6 +839,8 @@ document.addEventListener("submit",async e=>{
         S.me=r.me;S.loginMsg="";lastKey="";await load()}catch(err){S.loginMsg=err.message;lastKey="";render()}}
     if(f.id.startsWith("f-list-")){const kind=f.id.slice(7),name=v("nl-"+kind).trim();if(!name)return;
       if(await listOp({kind,action:"add",name})){const el=$("#nl-"+kind);if(el)el.value="";toast("Agregada")}}
+    if(f.id==="f-cust"){
+      try{await api("POST","/api/clientes",{name:v("c-name").trim(),phone:v("c-phone"),email:v("c-mail").trim()});f.reset();lastKey="";await load();toast("Cliente registrado")}catch(err){toast(err.message)}}
     if(f.id==="f-user"){
       try{await api("POST","/api/usuarios",{name:v("u-name").trim(),username:v("u-user").trim(),password:v("u-pw"),role:v("u-role")});f.reset();toast("Usuario creado");await loadUsers()}catch(err){toast(err.message)}}
     if(f.id==="f-prod"){const old=UI.editing==="new"?null:S.products.find(x=>x.id===UI.editing),id=old?old.id:uid();
@@ -795,7 +856,8 @@ document.addEventListener("submit",async e=>{
       await put("purchases",uid(),{type:"compra",ts:dateTs("b-date"),pid:p.id,qty:q,unitCost:c,total:q*c,supplier:v("b-sup").trim(),method:v("b-met")});lastKey="";toast("Compra registrada: +"+q+" pzas");}
     if(f.id==="f-adj"){const p=S.products.find(x=>x.id===v("a-pid")),q=Math.round(num(v("a-qty")));if(!p||!q){toast("Escribe cuántas piezas (+ o −)");return}
       await put("purchases",uid(),{type:"ajuste",ts:Date.now(),pid:p.id,qty:q,unitCost:num(p.cost),total:q*num(p.cost),reason:v("a-why").trim()});lastKey="";toast("Ajuste registrado");}
-    if(f.id==="f-set"){await put("config","business",{...S.settings,name:v("s-name").trim()||DEFAULTS.name,tagline:v("s-tag").trim(),phone:v("s-phone").trim(),currency:v("s-cur"),openingCash:num(v("s-cash")),fixedAssets:num(v("s-fa")),liabilities:num(v("s-liab")),storeUrl:v("s-url").trim()});lastKey="";toast("Ajustes guardados");}
+    if(f.id==="f-set"){await put("config","business",{...S.settings,name:v("s-name").trim()||DEFAULTS.name,tagline:v("s-tag").trim(),phone:v("s-phone").trim(),currency:v("s-cur"),openingCash:num(v("s-cash")),fixedAssets:num(v("s-fa")),liabilities:num(v("s-liab")),storeUrl:v("s-url").trim(),city:v("s-city").trim(),
+      promo:{active:$("#s-pr-on").checked,title:v("s-pr-title").trim(),percent:num(v("s-pr-pct")),minimum:num(v("s-pr-min")),end:v("s-pr-end")}});lastKey="";toast("Ajustes guardados. Publica la página web para que la promoción se actualice ahí.");}
   }catch{}finally{if(btn)btn.disabled=false;schedule()}
 });
 boot();

@@ -5,7 +5,7 @@ const path = require("node:path");
 const fs = require("node:fs");
 const crypto = require("node:crypto");
 const { execFile } = require("node:child_process");
-const { db, ROOT, getSettings, saveSettings, checkPassword, hashPassword, createUser } = require("./db");
+const { db, ROOT, getSettings, saveSettings, checkPassword, hashPassword, createUser, PHOTO_EXT, phoneKey } = require("./db");
 
 const PORT = Number(process.env.PORT || 8787);
 const DOCS = path.join(ROOT, "docs");
@@ -13,6 +13,12 @@ const SESSION_DAYS = 30;
 const MAX_BODY = 8 * 1024 * 1024;
 let version = Date.now();
 const bump = () => { version = Date.now(); };
+// Si otro programa (el importador) cambia la base de datos, la caja también debe enterarse.
+let dataVersion = db.prepare("PRAGMA data_version").get().data_version;
+function checkExternalChanges() {
+  const dv = db.prepare("PRAGMA data_version").get().data_version;
+  if (dv !== dataVersion) { dataVersion = dv; bump(); }
+}
 
 /* ---------- helpers ---------- */
 function send(res, status, body, headers = {}) {
@@ -75,14 +81,31 @@ function state(user) {
   }
   const sales = db.prepare("SELECT * FROM sales").all().map(s => ({
     id: s.id, ts: s.ts, subtotal: s.subtotal, total: s.total, method: s.method, channel: s.channel,
-    customer: s.customer, phone: s.phone, example: !!s.example, items: items.get(s.id) || [],
+    customer: s.customer, phone: s.phone, promo: s.promo, example: !!s.example, items: items.get(s.id) || [],
   }));
+  const customers = db.prepare("SELECT id, name, phone, email, source, created_at createdAt FROM customers ORDER BY created_at DESC").all();
   const expenses = db.prepare("SELECT * FROM expenses").all().map(e => ({ ...e, example: !!e.example }));
   const purchases = db.prepare("SELECT * FROM purchases").all().map(p => ({
     id: p.id, type: p.type, ts: p.ts, pid: p.product_id, qty: p.qty, unitCost: p.unit_cost, total: p.total,
     supplier: p.supplier, method: p.method, reason: p.reason, example: !!p.example,
   }));
-  return { version, me: user, settings: getSettings(), products, sales, expenses, purchases };
+  return { version, me: user, settings: getSettings(), products, sales, expenses, purchases, customers };
+}
+
+/* ---------- promoción de primera compra para clientes registrados ---------- */
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+function promoCheck(phone, subtotal) {
+  const pr = getSettings().promo || {}, key = phoneKey(phone);
+  if (!pr.active) return { ok: false, reason: "La promoción no está activa" };
+  if (pr.end && today() > pr.end) return { ok: false, reason: "La promoción ya venció" };
+  if (key.length !== 10) return { ok: false, reason: "Escribe el WhatsApp del cliente (10 dígitos)" };
+  const c = db.prepare("SELECT * FROM customers WHERE phone = ?").get(key);
+  if (!c) return { ok: false, reason: "El cliente no está registrado" };
+  const used = db.prepare("SELECT phone FROM sales WHERE promo = 'primera'").all().some(s => phoneKey(s.phone) === key);
+  if (used) return { ok: false, reason: `${c.name} ya usó su descuento de primera compra` };
+  if (subtotal < num(pr.minimum)) return { ok: false, reason: `La compra mínima es de $${num(pr.minimum).toLocaleString("es-MX")}` };
+  const pct = Math.max(0, Math.min(80, num(pr.percent)));
+  return { ok: true, customer: c.name, percent: pct, discount: Math.round(subtotal * pct) / 100 };
 }
 
 /* ---------- escrituras ---------- */
@@ -106,11 +129,17 @@ function insertSale(id, b, user) {
   const items = Array.isArray(b.items) ? b.items.filter(i => num(i.qty) > 0) : [];
   if (!items.length) throw new Error("La venta no tiene productos");
   const subtotal = items.reduce((a, i) => a + num(i.qty) * num(i.price), 0);
-  const total = Math.max(0, Math.min(subtotal, num(b.total)));
+  let total = Math.max(0, Math.min(subtotal, num(b.total))), promo = "";
+  if (b.promo === "primera") {
+    const pc = promoCheck(b.phone, subtotal);
+    if (!pc.ok) throw new Error(pc.reason);
+    total = Math.min(total, Math.round((subtotal - pc.discount) * 100) / 100);
+    promo = "primera";
+  }
   db.exec("BEGIN");
   try {
-    db.prepare("INSERT INTO sales(id, ts, subtotal, total, method, channel, customer, phone, user_id) VALUES (?,?,?,?,?,?,?,?,?)")
-      .run(id, num(b.ts) || Date.now(), subtotal, total, str(b.method, 30), str(b.channel, 30) || "Tienda", str(b.customer, 80), str(b.phone, 30), user.id);
+    db.prepare("INSERT INTO sales(id, ts, subtotal, total, method, channel, customer, phone, user_id, promo) VALUES (?,?,?,?,?,?,?,?,?,?)")
+      .run(id, num(b.ts) || Date.now(), subtotal, total, str(b.method, 30), str(b.channel, 30) || "Tienda", str(b.customer, 80), str(b.phone, 30), user.id, promo);
     const ins = db.prepare("INSERT INTO sale_items(sale_id, product_id, name, size, qty, price, cost) VALUES (?,?,?,?,?,?,?)");
     for (const i of items) ins.run(id, str(i.pid, 64), str(i.name, 150), str(i.size, 30), Math.round(num(i.qty)), num(i.price), num(i.cost));
     db.exec("COMMIT");
@@ -149,20 +178,31 @@ async function publishStore() {
   const st = getSettings(), sm = stockMap(), fotos = path.join(DOCS, "fotos");
   fs.mkdirSync(fotos, { recursive: true });
   const products = db.prepare("SELECT * FROM products WHERE active = 1 ORDER BY name").all();
+  // Cada foto se guarda una sola vez, nombrada por su contenido: todas las tallas de un color comparten archivo.
   const keep = new Set();
   const items = products.map(p => {
-    const ph = db.prepare("SELECT jpeg, updated_at FROM photos WHERE product_id = ?").get(p.id);
+    const ph = db.prepare("SELECT jpeg, mime FROM photos WHERE product_id = ?").get(p.id);
     let photo = "";
-    if (ph) { photo = `fotos/${p.id}.jpg?v=${ph.updated_at}`; keep.add(`${p.id}.jpg`); fs.writeFileSync(path.join(fotos, `${p.id}.jpg`), ph.jpeg); }
+    if (ph) {
+      const name = crypto.createHash("sha1").update(ph.jpeg).digest("hex").slice(0, 16) + "." + (PHOTO_EXT[ph.mime] || "jpg");
+      photo = "fotos/" + name;
+      if (!keep.has(name)) { keep.add(name); const f = path.join(fotos, name); if (!fs.existsSync(f)) fs.writeFileSync(f, ph.jpeg); }
+    }
     // Solo datos públicos: nunca costos, ventas ni existencias exactas.
     return { id: p.id, name: p.name, category: p.category || "", season: p.season || "", size: p.size || "", color: p.color || "",
       price: p.price, desc: p.description || "", photo, stock: Math.max(0, Math.min(3, sm.get(p.id) || 0)) };
   });
-  for (const f of fs.readdirSync(fotos)) if (f.endsWith(".jpg") && !keep.has(f)) fs.unlinkSync(path.join(fotos, f));
-  const catalog = { publishedAt: Date.now(), settings: { name: st.name, tagline: st.tagline, phone: st.phone, currency: st.currency }, items };
+  for (const f of fs.readdirSync(fotos)) if (/\.(jpg|png|webp)$/.test(f) && !keep.has(f)) fs.unlinkSync(path.join(fotos, f));
+  const pr = st.promo || {};
+  const catalog = { publishedAt: Date.now(),
+    settings: { name: st.name, tagline: st.tagline, phone: st.phone, currency: st.currency, city: st.city, categories: st.categories, seasons: st.seasons,
+      promo: pr.active ? { title: pr.title, percent: pr.percent, minimum: pr.minimum, end: pr.end } : null },
+    items };
   fs.writeFileSync(path.join(DOCS, "catalogo.json"), JSON.stringify(catalog, null, 1));
   if (!fs.existsSync(path.join(ROOT, ".git"))) return { ok: true, pushed: false, message: "Catálogo generado. Falta conectar la carpeta con GitHub para subirlo." };
-  await git(["add", "docs/catalogo.json", "docs/fotos"]);
+  // Con una base de datos de prueba (LECHUGA_DB) nunca se sube nada a la página real.
+  if (process.env.LECHUGA_DB) return { ok: true, pushed: false, message: "Catálogo generado (modo de prueba: no se subió a GitHub)." };
+  await git(["add", "-A", "docs/catalogo.json", "docs/fotos"]);
   const c = await git(["commit", "-m", "Actualiza catálogo de la tienda"]);
   if (!c.ok && !/nothing to commit|nada para hacer commit/i.test(c.out)) return { ok: false, pushed: false, message: "No se pudo guardar el cambio en git: " + c.out.slice(0, 300) };
   const p = await git(["push"]);
@@ -177,7 +217,10 @@ const hora = ts => { const d = new Date(ts); return `${d2(d.getHours())}:${d2(d.
 const BI = {
   ventas: () => db.prepare("SELECT s.*, u.name vendedor FROM sales s LEFT JOIN users u ON u.id = s.user_id ORDER BY ts").all().map(s => ({
     venta_id: s.id, fecha: fecha(s.ts), hora: hora(s.ts), subtotal: s.subtotal, descuento: s.subtotal - s.total, total: s.total,
-    forma_pago: s.method, canal: s.channel, cliente: s.customer || "", vendedor: s.vendedor || "", ejemplo: !!s.example })),
+    forma_pago: s.method, canal: s.channel, cliente: s.customer || "", vendedor: s.vendedor || "",
+    promocion: s.promo === "primera" ? "Primera compra" : "", ejemplo: !!s.example })),
+  clientes: () => db.prepare("SELECT * FROM customers ORDER BY created_at").all().map(c => ({
+    cliente_id: c.id, nombre: c.name, origen: c.source === "web" ? "Página web" : "Caja", fecha_registro: fecha(c.created_at) })),
   partidas: () => db.prepare(`SELECT i.*, s.ts, s.subtotal, s.total, p.category, p.season, p.color FROM sale_items i
       JOIN sales s ON s.id = i.sale_id LEFT JOIN products p ON p.id = i.product_id ORDER BY s.ts`).all().map(i => {
     const f = i.subtotal ? i.total / i.subtotal : 1, importe = i.qty * i.price * f;
@@ -231,8 +274,24 @@ async function route(req, res) {
   if (m === "GET" && p === "/api/salud") return send(res, 200, { ok: true, version });
   const photoGet = /^\/api\/fotos\/([A-Za-z0-9_-]+)$/.exec(p);
   if (m === "GET" && photoGet) {
-    const ph = db.prepare("SELECT jpeg FROM photos WHERE product_id = ?").get(photoGet[1]);
-    return ph ? send(res, 200, Buffer.from(ph.jpeg), { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=31536000" }) : fail(res, 404, "Sin foto");
+    const ph = db.prepare("SELECT jpeg, mime FROM photos WHERE product_id = ?").get(photoGet[1]);
+    return ph ? send(res, 200, Buffer.from(ph.jpeg), { "Content-Type": ph.mime, "Cache-Control": "public, max-age=31536000" }) : fail(res, 404, "Sin foto");
+  }
+  // Registro de clientes desde la página web (pública): solo nombre, WhatsApp y, si quiere, correo.
+  if (m === "POST" && p === "/api/public/registro") {
+    const ip = req.headers["cf-connecting-ip"] || req.socket.remoteAddress;
+    if (tooManyAttempts("reg:" + ip)) return fail(res, 429, "Demasiados registros desde esta conexión. Intenta más tarde.");
+    attempts.get("reg:" + ip).push(Date.now());
+    const b = await readBody(req);
+    const name = str(b.name, 80), phone = phoneKey(b.phone), email = str(b.email, 120).toLowerCase();
+    if (!b.acepta) return fail(res, 400, "Necesitamos que aceptes el aviso de privacidad");
+    if (name.length < 2) return fail(res, 400, "Escribe tu nombre");
+    if (phone.length !== 10) return fail(res, 400, "Escribe tu WhatsApp a 10 dígitos");
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail(res, 400, "Revisa tu correo");
+    const existing = db.prepare("SELECT id FROM customers WHERE phone = ?").get(phone);
+    if (!existing) { db.prepare("INSERT INTO customers(name, phone, email, source, created_at) VALUES (?,?,?,'web',?)").run(name, phone, email, Date.now()); bump(); }
+    const pr = getSettings().promo || {};
+    return send(res, 200, { ok: true, existing: !!existing, promo: pr.active ? { percent: pr.percent, minimum: pr.minimum, end: pr.end } : null });
   }
   if (m === "POST" && p === "/api/login") {
     const ip = req.headers["cf-connecting-ip"] || req.socket.remoteAddress;
@@ -252,8 +311,8 @@ async function route(req, res) {
   const needAdmin = () => { if (!admin) { fail(res, 403, "Solo el administrador puede hacer esto"); return false; } return true; };
   const b = m === "GET" || m === "DELETE" ? {} : await readBody(req);
 
-  if (m === "GET" && p === "/api/version") return send(res, 200, { version });
-  if (m === "GET" && p === "/api/estado") return send(res, 200, state(user));
+  if (m === "GET" && p === "/api/version") { checkExternalChanges(); return send(res, 200, { version }); }
+  if (m === "GET" && p === "/api/estado") { checkExternalChanges(); return send(res, 200, state(user)); }
   if (m === "POST" && p === "/api/logout") { db.prepare("DELETE FROM sessions WHERE token = ?").run(req.headers.authorization.slice(7)); return send(res, 200, { ok: true }); }
 
   const one = /^\/api\/(products|expenses|purchases|sales|fotos)\/([A-Za-z0-9_-]+)$/.exec(p);
@@ -270,10 +329,11 @@ async function route(req, res) {
     if (m === "PUT" && col === "sales") { insertSale(id, b, user); bump(); return send(res, 200, { ok: true }); }
     if (m === "PUT" && col === "purchases") { insertPurchase(id, b, user); bump(); return send(res, 200, { ok: true }); }
     if (m === "PUT" && col === "fotos") {
-      const mm = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(b.data || ""));
-      if (!mm) return fail(res, 400, "La foto debe ser JPEG");
-      db.prepare("INSERT INTO photos(product_id, jpeg, updated_at) VALUES (?, ?, ?) ON CONFLICT(product_id) DO UPDATE SET jpeg = excluded.jpeg, updated_at = excluded.updated_at")
-        .run(id, Buffer.from(mm[1], "base64"), Date.now());
+      const mm = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(b.data || ""));
+      if (!mm) return fail(res, 400, "La foto debe ser JPG, PNG o WEBP");
+      db.prepare(`INSERT INTO photos(product_id, jpeg, mime, updated_at) VALUES (?, ?, ?, ?)
+        ON CONFLICT(product_id) DO UPDATE SET jpeg = excluded.jpeg, mime = excluded.mime, updated_at = excluded.updated_at`)
+        .run(id, Buffer.from(mm[2], "base64"), mm[1], Date.now());
       bump(); return send(res, 200, { ok: true });
     }
     if (m === "DELETE") {
@@ -295,7 +355,24 @@ async function route(req, res) {
     if (!needAdmin()) return;
     const cur = getSettings();
     saveSettings({ ...cur, name: str(b.name, 80) || cur.name, tagline: str(b.tagline, 120), phone: str(b.phone, 30), currency: str(b.currency, 3) || "MXN",
-      openingCash: num(b.openingCash), fixedAssets: num(b.fixedAssets), liabilities: num(b.liabilities), storeUrl: str(b.storeUrl, 300) });
+      openingCash: num(b.openingCash), fixedAssets: num(b.fixedAssets), liabilities: num(b.liabilities), storeUrl: str(b.storeUrl, 300),
+      city: str(b.city, 80) || cur.city,
+      promo: b.promo ? { active: !!b.promo.active, title: str(b.promo.title, 60) || "Compra anticipada", percent: Math.max(0, Math.min(80, num(b.promo.percent))),
+        minimum: Math.max(0, num(b.promo.minimum)), end: /^\d{4}-\d{2}-\d{2}$/.test(b.promo.end || "") ? b.promo.end : "" } : cur.promo });
+    bump(); return send(res, 200, { ok: true });
+  }
+  if (m === "GET" && p === "/api/promo") return send(res, 200, promoCheck(url.searchParams.get("tel"), num(url.searchParams.get("subtotal"))));
+  if (p === "/api/clientes" && m === "POST") {
+    const name = str(b.name, 80), phone = phoneKey(b.phone), email = str(b.email, 120).toLowerCase();
+    if (name.length < 2 || phone.length !== 10) return fail(res, 400, "Escribe nombre y WhatsApp a 10 dígitos");
+    if (db.prepare("SELECT 1 FROM customers WHERE phone = ?").get(phone)) return fail(res, 400, "Ese WhatsApp ya está registrado");
+    db.prepare("INSERT INTO customers(name, phone, email, source, created_at) VALUES (?,?,?,'caja',?)").run(name, phone, email, Date.now());
+    bump(); return send(res, 200, { ok: true });
+  }
+  const cone = /^\/api\/clientes\/(\d+)$/.exec(p);
+  if (cone && m === "DELETE") {
+    if (!needAdmin()) return;
+    db.prepare("DELETE FROM customers WHERE id = ?").run(Number(cone[1]));
     bump(); return send(res, 200, { ok: true });
   }
   // Listas de categorías y temporadas: agregar, renombrar (cambia también las prendas) y quitar (mueve sus prendas).

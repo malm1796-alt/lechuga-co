@@ -40,14 +40,29 @@ CREATE TABLE IF NOT EXISTS purchases (
   product_id TEXT NOT NULL, qty INTEGER NOT NULL, unit_cost REAL NOT NULL, total REAL NOT NULL,
   supplier TEXT, method TEXT, reason TEXT, user_id INTEGER, example INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS idx_items_sale ON sale_items(sale_id);
+CREATE TABLE IF NOT EXISTS customers (
+  id INTEGER PRIMARY KEY, name TEXT NOT NULL, phone TEXT UNIQUE NOT NULL, email TEXT,
+  source TEXT NOT NULL DEFAULT 'caja', created_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_sales_ts ON sales(ts);
 `);
 
+// Las fotos guardan su formato original (jpg, png o webp); las bases creadas antes solo tenían jpg.
+if (!db.prepare("PRAGMA table_info(photos)").all().some(c => c.name === "mime"))
+  db.exec("ALTER TABLE photos ADD COLUMN mime TEXT NOT NULL DEFAULT 'image/jpeg'");
+const PHOTO_EXT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+// Qué promoción usó cada venta (vacío = ninguna); la de primera compra se valida contra el teléfono del cliente.
+if (!db.prepare("PRAGMA table_info(sales)").all().some(c => c.name === "promo"))
+  db.exec("ALTER TABLE sales ADD COLUMN promo TEXT NOT NULL DEFAULT ''");
+// Teléfono normalizado a 10 dígitos de México (quita lada 52 o 521 y todo lo que no sea número).
+const phoneKey = p => { let d = String(p || "").replace(/\D/g, ""); if (d.length === 13 && d.startsWith("521")) d = d.slice(3); else if (d.length === 12 && d.startsWith("52")) d = d.slice(2); return d; };
+
 const DEFAULT_SETTINGS = {
-  name: "Lechuga & Co.", tagline: "Ropa fresca de temporada", phone: "", currency: "MXN",
+  name: "Lechuga & Co.", tagline: "American Clothing desde 1990", phone: "", currency: "MXN",
   openingCash: 0, fixedAssets: 0, liabilities: 0, storeUrl: "",
   categories: ["Playeras", "Blusas", "Camisas", "Suéteres", "Pantalones", "Vestidos", "Chamarras", "Calzado", "Accesorios", "Infantil"],
   seasons: ["Otoño-Invierno 2026", "Primavera-Verano 2027", "Todo el año"],
+  city: "Chihuahua, Chihuahua",
+  promo: { active: true, title: "Compra anticipada", percent: 10, minimum: 1000, end: "2026-11-30" },
 };
 
 function getSettings() {
@@ -73,4 +88,4 @@ function createUser({ username, name, role, password }) {
     .run(username.trim().toLowerCase(), name.trim(), role, salt, hash, Date.now());
 }
 
-module.exports = { db, ROOT, DATA, getSettings, saveSettings, hashPassword, checkPassword, createUser, DEFAULT_SETTINGS };
+module.exports = { db, ROOT, DATA, getSettings, saveSettings, hashPassword, checkPassword, createUser, DEFAULT_SETTINGS, PHOTO_EXT, phoneKey };

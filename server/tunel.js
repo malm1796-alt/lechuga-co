@@ -17,6 +17,7 @@ async function announce(url) {
   fs.writeFileSync(file, JSON.stringify({ api: url, updatedAt: new Date().toISOString() }, null, 1) + "\n");
   console.log(`\n  Túnel abierto: ${url}`);
   if (!fs.existsSync(path.join(ROOT, ".git"))) { console.log("  (La carpeta aún no está conectada a GitHub.)"); return; }
+  if (process.env.LECHUGA_DB) { console.log("  (Modo de prueba: no se sube a GitHub.)"); return; }
   await git(["add", "docs/config.json"]);
   await git(["commit", "-m", "Actualiza la dirección del túnel"]);
   const p = await git(["push"]);
