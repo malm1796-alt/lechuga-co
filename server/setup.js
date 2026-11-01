@@ -49,9 +49,12 @@ function loadExamples() {
   if (admins && process.argv.includes("--si-falta")) return; // iniciar.bat: ya hay administrador
   console.log("\n  Lechuga & Co. — configuración inicial\n");
   if (admins) console.log("  Ya existe un administrador. Puedes crear otro o cerrar con Ctrl+C.\n");
+  // --usuario=NOMBRE deja el usuario ya escrito; la contraseña siempre la teclea la persona.
+  const pre = (process.argv.find(a => a.startsWith("--usuario=")) || "").slice(10).toLowerCase();
   const name = await ask("  Tu nombre: ");
-  let username;
-  for (;;) { username = (await ask("  Usuario para entrar (sin espacios): ")).toLowerCase(); if (/^[a-z0-9._-]{3,30}$/.test(username)) break; console.log("  Usa de 3 a 30 letras o números, sin espacios."); }
+  let username = /^[a-z0-9.&_-]{3,30}$/.test(pre) ? pre : "";
+  if (username) console.log(`  Usuario para entrar: ${username}`);
+  while (!username) { username = (await ask("  Usuario para entrar (sin espacios): ")).toLowerCase(); if (/^[a-z0-9.&_-]{3,30}$/.test(username)) break; username = ""; console.log("  Usa de 3 a 30 letras, números o los signos . & _ -, sin espacios."); }
   let password;
   for (;;) {
     password = await ask("  Contraseña (mínimo 8 caracteres): ", true);

@@ -467,7 +467,7 @@ async function route(req, res) {
     if (!needAdmin()) return;
     if (m === "GET") return send(res, 200, db.prepare("SELECT id, username, name, role, active FROM users ORDER BY id").all());
     if (m === "POST") {
-      if (!/^[a-z0-9._-]{3,30}$/.test(str(b.username).toLowerCase())) return fail(res, 400, "El usuario debe tener de 3 a 30 letras o números, sin espacios");
+      if (!/^[a-z0-9.&_-]{3,30}$/.test(str(b.username).toLowerCase())) return fail(res, 400, "El usuario debe tener de 3 a 30 letras, números o los signos . & _ -, sin espacios");
       if (String(b.password || "").length < 8) return fail(res, 400, "La contraseña debe tener al menos 8 caracteres");
       try { createUser({ username: str(b.username), name: str(b.name, 60) || str(b.username), role: b.role === "admin" ? "admin" : "vendedor", password: String(b.password) }); }
       catch { return fail(res, 400, "Ese usuario ya existe"); }
