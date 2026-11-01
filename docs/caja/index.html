@@ -197,6 +197,56 @@ code.url{font-family:var(--f-mono);font-size:.82rem;background:var(--sunk);paddi
 .pv-chip[aria-pressed="true"]:hover{background:#101923}
 @media (max-width:1180px){.ed-body{grid-template-columns:240px minmax(0,1fr)}.ed-prev{display:none}}
 @media (max-width:760px){.ed-body{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr;overflow:auto}.ed-list{max-height:220px;border-right:0;border-bottom:1px solid var(--line)}.ed-color{grid-template-columns:minmax(0,1fr)}.ed-form{overflow:visible}}
+/* Punto de venta: tarjetas por modelo, selector de talla y ticket con cobro rápido. */
+.pos{grid-template-columns:minmax(0,1fr) minmax(0,400px)}
+.pos-search{font-size:1.05rem;padding:12px 14px}
+.mgrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(158px,1fr))}
+.mcard{display:grid;gap:4px;text-align:left;padding:8px 8px 10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;font-weight:400;align-content:start}
+.mcard:hover{border-color:var(--denim);background:var(--surface);transform:translateY(-2px);box-shadow:0 6px 16px rgba(16,25,35,.08)}
+.mcard.on{border-color:var(--thread);box-shadow:0 0 0 2px var(--thread)}
+.mcard.out{opacity:.55}
+.mph{position:relative;display:block;aspect-ratio:4/5;max-width:100%;border-radius:8px;overflow:hidden;background:var(--sunk)}
+.mph img{width:100%;height:100%;object-fit:cover;display:block}
+.mflag{position:absolute;top:6px;left:6px;font:800 .62rem var(--f-display);letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:var(--warn-soft);color:var(--warn)}
+.mflag.bad{background:var(--bad-soft);color:var(--bad)}
+.mname{font:700 .86rem var(--f-display);line-height:1.25;margin-top:4px}
+.mprice{font:800 1rem var(--f-display);color:var(--thread)}
+.mprice.none{color:var(--warn);font-size:.85rem}
+.cart{display:grid;gap:12px;align-content:start;max-height:calc(100vh - 140px);overflow:auto}
+.picker{display:grid;gap:10px;padding:12px;border:2px solid var(--thread);border-radius:12px;background:var(--thread-soft);animation:pop .18s ease-out}
+.pk-img{width:56px;height:70px;object-fit:cover;border-radius:6px}
+.sizes-pos{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:8px}
+.szb{display:grid;gap:2px;justify-items:center;padding:10px 4px;border-radius:10px;background:var(--surface);border:1.5px solid var(--denim);font-weight:400}
+.szb b{font:800 1.05rem var(--f-display)}
+.szb span{font-size:.7rem;color:var(--muted)}
+.szb:hover{background:var(--denim);color:var(--on-denim)}
+.szb:hover span{color:inherit}
+.szb.zero{border-style:dashed;opacity:.6}
+.szb:active{transform:scale(.95)}
+.clines{display:grid;gap:2px}
+.cline{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 6px;border-bottom:1px dashed var(--line);border-radius:8px}
+.cline img{width:40px;height:50px;object-fit:cover;border-radius:4px}
+.cline .cname{font-weight:600;font-size:.9rem;line-height:1.2}
+.cline .qty{margin-top:4px}
+.cline.flash{animation:flash .8s ease-out}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;background:var(--sunk);padding:4px;border-radius:10px}
+.seg button{border:0;background:transparent;padding:10px 6px;border-radius:8px;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--denim);color:var(--on-denim)}
+.seg.small button{padding:7px 6px;font-size:.82rem}
+.cashbox{display:grid;gap:8px}
+.pos-change{display:flex;justify-content:space-between;align-items:baseline;padding:10px 12px;border-radius:10px;background:var(--good-soft);color:var(--good)}
+.pos-change b{font:800 1.4rem var(--f-display)}
+.pos-change.short{background:var(--bad-soft);color:var(--bad)}
+.paybtn{justify-content:center;padding:15px;font-size:1.05rem}
+.pos-done{max-width:520px;display:grid;gap:12px;justify-items:start;animation:pop .25s ease-out}
+.pos-check{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:var(--good);color:#fff;font-size:1.8rem;font-weight:800}
+.ptable td{vertical-align:middle}
+.ptable .pin{width:110px;text-align:right;padding:7px 9px}
+.ptable-warn td{background:var(--warn-soft)}
+@keyframes pop{from{transform:scale(.97);opacity:.4}to{transform:none;opacity:1}}
+@keyframes flash{0%{background:var(--thread-soft)}100%{background:transparent}}
+@media (prefers-reduced-motion:reduce){.picker,.pos-done,.cline.flash{animation:none}.mcard:hover{transform:none}}
+@media (max-width:860px){.cart{position:static;max-height:none}}
 </style>
 </head>
 <body>
@@ -214,7 +264,7 @@ code.url{font-family:var(--f-mono);font-size:.82rem;background:var(--sunk);paddi
 <div id="toast" class="toast" hidden></div>
 <div id="overlay" class="overlay" hidden></div>
 <script>
-const TABS=[["hoy","Hoy"],["vender","Vender"],["catalogo","Catálogo"],["clientes","Clientes"],["movs","Gastos y compras"],["reportes","Estados financieros"],["conexiones","Conexiones"],["publicidad","Publicidad"],["marca","Marca"],["ajustes","Ajustes"]];
+const TABS=[["hoy","Hoy"],["vender","Punto de venta"],["catalogo","Catálogo"],["clientes","Clientes"],["movs","Gastos y compras"],["reportes","Estados financieros"],["conexiones","Conexiones"],["publicidad","Publicidad"],["marca","Marca"],["ajustes","Ajustes"]];
 // Dónde está el servidor: en la PC de la tienda es la misma dirección; desde GitHub Pages es la del túnel,
 // que tunel.js publica en config.json cada vez que la PC enciende.
 const REMOTE=/github\.io$/i.test(location.hostname);
@@ -422,7 +472,7 @@ function render(){
 }
 
 function bars(days){
-  const W=640,H=150,P=24,max=Math.max(1,...days.map(d=>d.v)),bw=(W-P*2)/days.length;
+  const W=640,H=150,P=24,max=Math.max(100,...days.map(d=>d.v)),bw=(W-P*2)/days.length;
   const nice=Math.pow(10,Math.floor(Math.log10(max))),top=Math.ceil(max/nice)*nice;
   let s=`<svg class="chart" viewBox="0 0 ${W} ${H+28}" width="100%" role="img" aria-label="Ventas de los últimos 14 días">`;
   [0,.5,1].forEach(f=>{const y=P+(H-P)*(1-f);s+=`<line class="grid" x1="${P+30}" x2="${W-P}" y1="${y}" y2="${y}"/><text x="${P+26}" y="${y+3}" text-anchor="end">${f?(top*f>=1000?(top*f/1000).toFixed(top*f%1000?1:0)+"k":Math.round(top*f)):"0"}</text>`});
@@ -461,37 +511,106 @@ function vHoy(){
   </div>`;
 }
 
+// Grupo = modelo + temporada + color: comparten foto y casi siempre precio. Es la unidad del punto de venta y de los precios rápidos.
+function colorGroups(list){
+  const g=new Map();
+  for(const p of list){const k=modelKey(p)+"|"+String(p.color||"").toLowerCase().trim();
+    if(!g.has(k))g.set(k,{key:k,model:modelKey(p),name:p.name,season:p.season||"",category:p.category||"",color:p.color||"",rows:[],photo:null});
+    const x=g.get(k);x.rows.push(p);if(!x.photo&&p.photo)x.photo=p}
+  const sm=stockMap();
+  return [...g.values()].map(x=>{x.rows.sort((a,b)=>sizeRank(a.size)-sizeRank(b.size));
+    const pr=x.rows.map(r=>num(r.price)),co=x.rows.map(r=>num(r.cost));
+    x.min=Math.min(...pr);x.max=Math.max(...pr);x.priced=x.min>0;x.cost=co[0];x.sameCost=new Set(co).size<=1;
+    x.stock=x.rows.reduce((a,r)=>a+Math.max(0,sm[r.id]||0),0);x.sm=sm;return x})
+    .sort((a,b)=>(b.priced-a.priced)||a.name.localeCompare(b.name)||a.color.localeCompare(b.color));
+}
+async function saveGroupPrice(gr,price,cost){
+  const products=gr.rows.map(p=>({id:p.id,name:p.name,sku:p.sku||"",category:p.category||"",season:p.season||"",size:p.size||"",color:p.color||"",
+    price:price!=null?price:num(p.price),cost:cost!=null?cost:num(p.cost),desc:p.desc||"",image:p.image||"",active:p.active!==false}));
+  await api("POST","/api/catalogo/guardar",{products,photos:[]});await load();
+}
+const groupIndex=()=>{const m=new Map();for(const g of colorGroups(activeProducts()))m.set(g.key,g);return m};
+
+/* ---------- catálogo: precios rápidos ---------- */
+function priceTable(){
+  const all=colorGroups(activeProducts()),q=(UI.cq||"").toLowerCase(),unpriced=all.filter(g=>!g.priced).length;
+  const list=all.filter(g=>(!UI.onlyUnpriced||!g.priced)&&(!q||(g.name+" "+g.color+" "+g.category).toLowerCase().includes(q)));
+  return `<div class="card" style="display:grid;gap:12px"><div class="row between"><div><h3>Precios y existencias</h3><span class="small muted">Escribe el precio o el costo y se guarda solo, para todas las tallas de ese color. Para precios por talla, existencias o fotos usa el editor.</span></div>
+      ${unpriced?`<span class="pill warn">${unpriced} sin precio</span>`:`<span class="pill good">Todo con precio</span>`}</div>
+    <div class="row"><input id="cat-q" type="search" placeholder="Buscar modelo o color" value="${esc(UI.cq||"")}" data-fresh="1" style="max-width:320px">
+      ${unpriced?`<button class="chip" data-act="only-unpriced" aria-pressed="${!!UI.onlyUnpriced}">Solo sin precio</button>`:""}</div>
+    ${list.length?`<div class="tbl"><table class="ptable"><thead><tr><th></th><th>Modelo y color</th><th>Tallas (piezas)</th><th class="r">Precio</th><th class="r">Costo</th><th class="r">Margen</th><th></th></tr></thead><tbody>
+    ${list.map((g,i)=>{const m=g.priced&&g.cost?(g.min-g.cost)/g.min:NaN;return `<tr class="${g.priced?"":"ptable-warn"}">
+      <td>${g.photo?`<img class="thumb" src="${esc(photoUrl(g.photo))}" alt="" loading="lazy">`:`<div class="thumb"></div>`}</td>
+      <td style="white-space:normal;min-width:180px"><b>${esc(g.name)}</b><div class="small muted">${esc([g.color,g.category,g.season].filter(Boolean).join(" · "))}</div></td>
+      <td style="white-space:normal;min-width:160px"><div class="row" style="gap:4px">${g.rows.map(r=>{const s=g.sm[r.id]||0;return `<span class="pill ${s<=0?"":s<=2?"warn":"good"}">${esc(r.size)} · ${s}</span>`}).join("")}</div></td>
+      <td class="r"><input class="pin" id="pp-p-${i}" data-pp="price" data-k="${esc(g.key)}" inputmode="decimal" value="${g.priced?(g.min===g.max?g.min:""):""}" placeholder="${g.priced?"Varía por talla":"Poner precio"}" aria-label="Precio de ${esc(g.name+" "+g.color)}"></td>
+      <td class="r"><input class="pin" id="pp-c-${i}" data-pp="cost" data-k="${esc(g.key)}" inputmode="decimal" value="${g.sameCost&&g.cost?g.cost:""}" placeholder="${g.sameCost?"Costo":"Varía"}" aria-label="Costo de ${esc(g.name+" "+g.color)}"></td>
+      <td class="r" data-pm="${esc(g.key)}">${pct(m)}</td>
+      <td><div class="row" style="flex-wrap:nowrap"><button class="tiny" data-act="edit-prod" data-k="${g.rows[0].id}">Editor</button>${g.priced?`<a class="btn tiny wa" target="_blank" rel="noopener" href="${esc(waLink("",productText(g.rows[0])))}">Compartir</a>`:""}</div></td></tr>`}).join("")}
+    </tbody></table></div>`:`<div class="empty">${all.length?"Nada coincide.":"Tu catálogo está vacío. Toca <b>+ Nuevo modelo</b>."}</div>`}</div>`;
+}
+
+/* ---------- punto de venta ---------- */
+const QUICK_CASH=[200,500,1000];
 function vVender(){
   if(UI.lastSale){const s=UI.lastSale,txt=ticketText(s);
-    return `<div class="card" style="max-width:520px;display:grid;gap:12px"><div class="eyebrow">Venta registrada</div><h2>${money(s.total)} · ${esc(s.method)}</h2>
+    return `<div class="card pos-done"><div class="pos-check">✓</div><div class="eyebrow">Venta registrada</div><h2>${money(s.total)} · ${esc(s.method)}</h2>
+    ${s.cash?`<div class="pos-change"><span>Recibido ${money(s.cash)}</span><b>Cambio ${money(Math.max(0,s.cash-s.total))}</b></div>`:""}
     <div class="ticket" id="tk">${esc(txt)}</div>
     <label>WhatsApp del cliente<input id="tk-phone" inputmode="tel" placeholder="10 dígitos" value="${esc(s.phone||"")}"></label>
-    <div class="row"><button class="wa" data-act="send-ticket">Enviar ticket por WhatsApp</button><button data-act="copy-ticket">Copiar ticket</button><button class="primary" data-act="new-sale">Nueva venta</button></div>
-    <p class="small muted">El botón abre WhatsApp con el mensaje listo; revisa que se haya enviado.</p></div>`}
-  const sm=stockMap(),q=UI.q.toLowerCase();
-  const ps=activeProducts().filter(p=>(!UI.cat||p.category===UI.cat)&&(!UI.season||(p.season||NO_SEASON)===UI.season)&&(!q||[p.name,p.sku,p.size,p.color,p.season].join(" ").toLowerCase().includes(q)));
-  const cats=[...new Set(activeProducts().map(p=>p.category).filter(Boolean))],seas=[...new Set(activeProducts().map(p=>p.season||NO_SEASON))];
-  const {sub,disc,promo,promoDisc,tot}=cartTotals();
-  return `<div class="pos"><div style="display:grid;gap:12px;min-width:0">
-    <div class="row between"><h2>Vender</h2><span class="muted small">${ps.length} producto${ps.length===1?"":"s"}</span></div>
-    <input id="pos-q" type="search" placeholder="Buscar por nombre, código, talla o color" value="${esc(UI.q)}" data-fresh="1">
-    <div class="chips"><button class="chip" data-act="cat" data-k="" aria-pressed="${!UI.cat}">Todo</button>${cats.map(c=>`<button class="chip" data-act="cat" data-k="${esc(c)}" aria-pressed="${UI.cat===c}">${esc(c)}</button>`).join("")}</div>
-    ${seas.length>1?`<div class="chips"><span class="eyebrow" style="align-self:center">Temporada</span><button class="chip" data-act="season" data-k="" aria-pressed="${!UI.season}">Todas</button>${seas.map(c=>`<button class="chip" data-act="season" data-k="${esc(c)}" aria-pressed="${UI.season===c}">${esc(c)}</button>`).join("")}</div>`:""}
-    ${ps.length?`<div class="prods">${ps.map(p=>{const s=sm[p.id]||0;return `<button class="prod ${s<=0?"out":""}" data-act="add" data-k="${p.id}">${p.photo?`<img src="${esc(photoUrl(p))}" alt="" loading="lazy">`:""}<span class="n">${esc(p.name)}</span><span class="meta">${esc([p.size&&"Talla "+p.size,p.color].filter(Boolean).join(" · "))}</span><span class="p">${money(p.price)}</span><span class="pill ${s<=0?"bad":s<=2?"warn":""}">${s} en tienda</span></button>`}).join("")}</div>`:`<div class="empty">${S.products.length?"Nada coincide con la búsqueda.":'Primero da de alta tus productos en <a href="#" data-act="tab" data-k="catalogo">Catálogo</a>.'}</div>`}
+    <div class="row"><button class="wa" data-act="send-ticket">Enviar ticket por WhatsApp</button><button data-act="copy-ticket">Copiar ticket</button><button class="primary" data-act="new-sale">Nueva venta</button></div></div>`}
+  const all=colorGroups(activeProducts()),q=UI.q.toLowerCase().trim();
+  const list=all.filter(g=>(!UI.cat||g.category===UI.cat)&&(!UI.season||(g.season||NO_SEASON)===UI.season)&&(!q||[g.name,g.color,g.category,g.season,...g.rows.map(r=>r.sku+" "+r.size)].join(" ").toLowerCase().includes(q)));
+  const cats=[...new Set(all.map(g=>g.category).filter(Boolean))],seas=[...new Set(all.map(g=>g.season||NO_SEASON))];
+  const {sub,disc,promo,promoDisc,tot}=cartTotals(),units=UI.cart.reduce((a,i)=>a+i.qty,0),method=UI.method||"Efectivo",cash=num(UI.cash),pick=UI.pick&&all.find(g=>g.key===UI.pick);
+  return `<div class="pos">
+  <div style="display:grid;gap:12px;min-width:0;align-content:start">
+    <div class="row between"><div><div class="eyebrow">${list.length} modelo${list.length===1?"":"s"} · ${list.reduce((a,g)=>a+g.stock,0)} piezas</div><h2>Punto de venta</h2></div><span class="small muted">Tecla <b>/</b> para buscar</span></div>
+    <input id="pos-q" class="pos-search" type="search" placeholder="Buscar por nombre, color, talla o código" value="${esc(UI.q)}" data-fresh="1" autocomplete="off">
+    <div class="chips"><button class="chip" data-act="cat" data-k="" aria-pressed="${!UI.cat}">Todo</button>${cats.map(c=>`<button class="chip" data-act="cat" data-k="${esc(c)}" aria-pressed="${UI.cat===c}">${esc(c)}</button>`).join("")}
+      ${seas.length>1?seas.map(c=>`<button class="chip" data-act="season" data-k="${esc(UI.season===c?"":c)}" aria-pressed="${UI.season===c}">${esc(c)}</button>`).join(""):""}</div>
+    ${list.length?`<div class="mgrid">${list.map(g=>`<button class="mcard ${g.stock<=0?"out":""} ${UI.pick===g.key?"on":""}" data-act="pick" data-k="${esc(g.key)}">
+        <span class="mph">${g.photo?`<img src="${esc(photoUrl(g.photo))}" alt="" loading="lazy">`:`<span class="ed-noph" style="width:100%;height:100%">${mountainSVG(44,{fg:"#fff"})}</span>`}
+          ${!g.priced?'<span class="mflag">Sin precio</span>':g.stock<=0?'<span class="mflag bad">Agotado</span>':g.stock<=2?`<span class="mflag warn">Últimas ${g.stock}</span>`:""}</span>
+        <span class="mname">${esc(g.name)}</span><span class="small muted">${esc(g.color||"")}</span>
+        <span class="row between"><span class="mprice ${g.priced?"":"none"}">${g.priced?money(g.min)+(g.max>g.min?"+":""):"Sin precio"}</span><span class="small muted">${g.stock} pzs</span></span></button>`).join("")}</div>`
+      :`<div class="empty">${S.products.length?"Nada coincide con la búsqueda.":'Primero da de alta tus productos en <a href="#" data-act="tab" data-k="catalogo">Catálogo</a>.'}</div>`}
   </div>
-  <aside class="card cart" style="display:grid;gap:10px"><div class="row between"><h3>Ticket actual</h3>${UI.cart.length?`<button class="ghost tiny danger" data-act="clear-cart">Vaciar</button>`:""}</div>
-    ${UI.cart.length?UI.cart.map((i,ix)=>`<div class="line"><div style="min-width:0"><div style="font-weight:600">${esc(i.name)}</div><div class="small muted">${esc(i.size||"")} · ${money(i.price)} c/u</div></div><div class="qty"><button class="tiny" data-act="dec" data-k="${ix}" aria-label="Quitar uno">−</button><span class="num">${i.qty}</span><button class="tiny" data-act="inc" data-k="${ix}" aria-label="Agregar uno">+</button></div><div class="num" style="min-width:76px;text-align:right">${money(i.qty*i.price)}</div></div>`).join(""):`<div class="empty">Toca un producto para agregarlo.</div>`}
-    <div class="form"><label>Descuento ($)<input id="pos-desc" inputmode="decimal" value="${esc(UI.discount||"")}" placeholder="0" data-fresh="1"></label>
-      <label>Forma de pago<select id="pos-method">${METHODS.map(m=>`<option>${m}</option>`).join("")}</select></label>
-      <label>Canal<select id="pos-channel"><option>Tienda</option><option>WhatsApp</option></select></label>
-      <label class="full">WhatsApp del cliente (opcional)<input id="pos-phone" inputmode="tel" placeholder="10 dígitos" value="${esc(UI.phone||"")}" data-fresh="1"></label>
-      <label class="full">Cliente (opcional)<input id="pos-cust" placeholder="${esc(promo&&promo.c?promo.c.name:"Nombre")}"></label></div>
+  <aside class="card cart">
+    ${pick?pickerHTML(pick,all):""}
+    <div class="row between"><h3>Ticket ${units?`<span class="pill">${units} pza${units===1?"":"s"}</span>`:""}</h3>${UI.cart.length?`<button class="ghost tiny danger" data-act="clear-cart">Vaciar</button>`:""}</div>
+    ${UI.cart.length?`<div class="clines">${UI.cart.map((i,ix)=>`<div class="cline ${UI.flash===i.pid?"flash":""}">${i.photo?`<img src="${esc(i.photo)}" alt="">`:`<span class="ed-noph" style="width:40px;height:50px"></span>`}
+        <div style="min-width:0"><div class="cname">${esc(i.name)}</div><div class="small muted">${esc([i.color,i.size&&"Talla "+i.size].filter(Boolean).join(" · "))} · ${money(i.price)}</div>
+          <div class="qty"><button class="tiny" data-act="dec" data-k="${ix}" aria-label="Quitar uno">−</button><span class="num">${i.qty}</span><button class="tiny" data-act="inc" data-k="${ix}" aria-label="Agregar uno">+</button></div></div>
+        <div style="display:grid;justify-items:end;gap:6px"><b class="num">${money(i.qty*i.price)}</b><button class="tiny ghost danger" data-act="rm-line" data-k="${ix}" aria-label="Quitar del ticket">✕</button></div></div>`).join("")}</div>`
+      :`<div class="empty" style="padding:18px">Toca un modelo, elige la talla y se agrega aquí.</div>`}
+    <div class="seg" role="group" aria-label="Forma de pago">${METHODS.map(m=>`<button data-act="method" data-k="${m}" aria-pressed="${method===m}">${m}</button>`).join("")}</div>
+    ${method==="Efectivo"&&UI.cart.length?`<div class="cashbox"><label>Recibe<input id="pos-cash" inputmode="decimal" placeholder="$" value="${esc(UI.cash||"")}" data-fresh="1"></label>
+      <div class="row" style="gap:6px"><button class="tiny" data-act="cash" data-k="${tot}">Exacto</button>${QUICK_CASH.filter(v=>v>=tot).slice(0,3).map(v=>`<button class="tiny" data-act="cash" data-k="${v}">${money(v)}</button>`).join("")}</div>
+      ${cash?`<div class="pos-change ${cash<tot?"short":""}"><span>${cash<tot?"Faltan":"Cambio"}</span><b>${money(Math.abs(cash-tot))}</b></div>`:""}</div>`:""}
+    <div class="seg small" role="group" aria-label="Canal">${["Tienda","WhatsApp"].map(c=>`<button data-act="channel" data-k="${c}" aria-pressed="${(UI.channel||"Tienda")===c}">${c==="WhatsApp"?"Pedido por WhatsApp":"En tienda"}</button>`).join("")}</div>
+    <label>WhatsApp del cliente (opcional)<input id="pos-phone" inputmode="tel" placeholder="10 dígitos · para su descuento y su ticket" value="${esc(UI.phone||"")}" data-fresh="1"></label>
+    ${promo&&promo.c?"":`<label>Cliente (opcional)<input id="pos-cust" placeholder="Nombre"></label>`}
     ${promo?promo.ok?`<label class="banner" style="background:var(--good-soft);color:var(--good);display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" id="pos-promo" style="width:auto" ${UI.usePromo!==false?"checked":""} data-fresh="1"> ${esc(promo.msg)} (−${money(promo.disc)})</label>`
       :`<div class="banner" style="background:var(--sunk);color:var(--muted)">${esc(promo.msg)}</div>`:""}
+    ${UI.showDisc||disc?`<label>Descuento ($)<input id="pos-desc" inputmode="decimal" value="${esc(UI.discount||"")}" placeholder="0" data-fresh="1"></label>`:UI.cart.length?`<button class="ghost tiny" data-act="show-disc" style="justify-self:start">+ Agregar descuento</button>`:""}
     ${disc||promoDisc?`<div class="row between small"><span>Subtotal</span><span class="num">${money(sub)}</span></div>${disc?`<div class="row between small"><span>Descuento</span><span class="num neg-v">-${money(disc)}</span></div>`:""}${promoDisc?`<div class="row between small"><span>Primera compra (${promo.pct}%)</span><span class="num neg-v">-${money(promoDisc)}</span></div>`:""}`:""}
     <div class="total"><span>Total</span><span>${money(tot)}</span></div>
-    <button class="primary" style="justify-content:center;padding:12px;font-size:1rem" data-act="checkout" ${UI.cart.length?"":"disabled"}>Cobrar ${money(tot)}</button>
+    <button class="primary paybtn" data-act="checkout" ${UI.cart.length&&!(method==="Efectivo"&&cash&&cash<tot)?"":"disabled"}>Cobrar ${money(tot)}</button>
   </aside></div>`;
+}
+function pickerHTML(g,all){
+  const sibs=all.filter(x=>x.model===g.model),pr=g.min;
+  return `<div class="picker"><div class="row between" style="align-items:start"><div style="display:flex;gap:10px;min-width:0">${g.photo?`<img src="${esc(photoUrl(g.photo))}" alt="" class="pk-img">`:""}
+      <div style="min-width:0"><b>${esc(g.name)}</b><div class="small muted">${esc(g.color||"")}</div><div class="mprice ${g.priced?"":"none"}">${g.priced?money(pr)+(g.max>pr?" – "+money(g.max):""):"Sin precio"}</div></div></div>
+      <button class="tiny ghost" data-act="pick-close" aria-label="Cerrar">✕</button></div>
+    ${sibs.length>1?`<div class="row" style="gap:6px">${sibs.map(x=>`<button class="chip" data-act="pick" data-k="${esc(x.key)}" aria-pressed="${x.key===g.key}"><i class="ed-sw" style="width:10px;height:10px;background:${swatch(x.color)}"></i> ${esc(x.color||"Único")}</button>`).join("")}</div>`:""}
+    ${g.priced?`<div class="small muted">Toca la talla para agregarla al ticket:</div>
+      <div class="sizes-pos">${g.rows.map(r=>{const s=g.sm[r.id]||0;return `<button class="szb ${s<=0?"zero":""}" data-act="add" data-k="${r.id}"><b>${esc(r.size||"Única")}</b><span>${s} pza${s===1?"":"s"}</span>${num(r.price)!==pr?`<span>${money(r.price)}</span>`:""}</button>`}).join("")}</div>`
+      :`<div class="banner" style="display:grid;gap:8px">Esta prenda aún no tiene precio. Ponlo aquí y se guarda para todas sus tallas:
+        <div class="row"><input id="pk-price" inputmode="decimal" placeholder="Precio $" style="max-width:130px"><input id="pk-cost" inputmode="decimal" placeholder="Costo $" style="max-width:130px"><button class="primary tiny" data-act="pk-save" data-k="${esc(g.key)}">Guardar</button></div></div>`}
+  </div>`;
 }
 
 function productForm(){
@@ -548,15 +667,14 @@ function vCatalogo(){
   const zs={};ps.forEach(p=>{const k=p.season||NO_SEASON,z=zs[k]||(zs[k]={n:0,q:0,v:0,sold:0});z.n++;z.q+=Math.max(0,sm[p.id]||0);z.v+=Math.max(0,sm[p.id]||0)*num(p.cost);z.sold+=sold[p.id]||0});
   return `<div class="row between"><div><div class="eyebrow">${ps.length} productos</div><h2>Catálogo e inventario</h2></div><div class="row"><button class="primary" data-act="open-editor">Abrir editor de prendas</button><button data-act="new-prod">+ Nuevo modelo</button></div></div>
   ${UI.editing?productForm():""}
-  <div class="grid g2">${listCard("categories")}${listCard("seasons")}</div>
+  ${priceTable()}
   <div class="kpis"><div class="kpi"><div class="eyebrow">Inventario a costo</div><div class="v">${money(inv)}</div></div><div class="kpi"><div class="eyebrow">Inventario a precio de venta</div><div class="v">${money(ret)}</div><div class="h">Ganancia potencial ${money(ret-inv)}</div></div><div class="kpi"><div class="eyebrow">Piezas en tienda</div><div class="v">${ps.reduce((x,p)=>x+Math.max(0,sm[p.id]||0),0)}</div></div></div>
   ${Object.keys(zs).length?`<div class="card" style="display:grid;gap:10px"><h3>Inventario por temporada</h3><p class="small muted" style="margin:0">Lo que queda de una temporada que ya terminó es dinero parado: conviene liquidarlo con descuento antes de que llegue la siguiente.</p><div class="tbl"><table><thead><tr><th>Temporada</th><th class="r">Modelos</th><th class="r">Vendidas</th><th class="r">En tienda</th><th class="r">Vendido</th><th class="r">Valor a costo</th></tr></thead><tbody>${Object.entries(zs).map(([n,z])=>`<tr><td><b>${esc(n)}</b></td><td class="r">${z.n}</td><td class="r">${z.sold}</td><td class="r">${z.q}</td><td class="r">${pct(z.sold+z.q?z.sold/(z.sold+z.q):NaN)}</td><td class="r">${money(z.v)}</td></tr>`).join("")}</tbody></table></div></div>`:""}
   <div class="card" style="display:grid;gap:10px"><div class="row between"><h3>Catálogo de WhatsApp Business</h3><span class="pill ${noImg?"warn":"good"}">${noImg?noImg+" sin foto":"Listo para subir"}</span></div>
     <p class="small muted" style="margin:0;max-width:70ch">Descarga el archivo y súbelo en <b>Meta Commerce Manager → Catálogo → Orígenes de datos → Lista de datos</b>. Ese catálogo se conecta a tu cuenta de WhatsApp Business. Las fotos se toman de la página web, así que primero publica la tienda en <a href="#" data-act="tab" data-k="conexiones">Conexiones</a>.</p>
     <div class="row"><button class="wa" data-act="export-cat">Descargar catálogo (.csv)</button><button data-act="show-cat">Ver y copiar</button></div></div>
-  ${ps.length?`<div class="tbl"><table><thead><tr><th></th><th>Producto</th><th>Temporada</th><th>Categoría</th><th>Talla</th><th class="r">Precio</th><th class="r">Costo</th><th class="r">Margen</th><th class="r">Existencias</th><th></th></tr></thead><tbody>
-  ${ps.map(p=>{const s=sm[p.id]||0,m=num(p.price)?(num(p.price)-num(p.cost))/num(p.price):NaN;return `<tr><td>${p.photo?`<img class="thumb" src="${esc(photoUrl(p))}" alt="" loading="lazy">`:`<div class="thumb"></div>`}</td><td><b>${esc(p.name)}</b>${p.example?' <span class="pill ex">Ejemplo</span>':""}<div class="small muted">${esc([p.sku,p.color].filter(Boolean).join(" · "))}</div></td><td>${esc(p.season||"")}</td><td>${esc(p.category||"")}</td><td>${esc(p.size||"")}</td><td class="r">${money(p.price)}</td><td class="r">${money(p.cost)}</td><td class="r">${pct(m)}</td><td class="r"><span class="pill ${s<=0?"bad":s<=2?"warn":"good"}">${s}</span></td>
-  <td><div class="row" style="flex-wrap:nowrap"><button class="tiny" data-act="edit-prod" data-k="${p.id}">Editar</button><a class="btn tiny wa" target="_blank" rel="noopener" href="${esc(waLink("",productText(p)))}">Compartir</a>${!isAdmin()?"":UI.confirm==="p"+p.id?`<button class="tiny danger" data-act="archive" data-k="${p.id}">¿Archivar?</button><button class="tiny ghost" data-act="no">No</button>`:`<button class="tiny ghost danger" data-act="ask" data-k="p${p.id}">Archivar</button>`}</div></td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">Tu catálogo está vacío. Toca <b>+ Producto</b> para agregar la primera prenda.</div>`}
+  <div class="card" style="display:grid;gap:10px"><div class="row between"><h3>Categorías y temporadas</h3><button class="tiny" data-act="toggle-lists">${UI.showLists?"Ocultar":"Administrar"}</button></div>
+    ${UI.showLists?`<div class="grid g2">${listCard("categories")}${listCard("seasons")}</div>`:`<p class="small muted" style="margin:0">${listOf("categories").length} categorías · ${listOf("seasons").length} temporadas</p>`}</div>
   ${archivedSection()}`;
 }
 
@@ -1208,6 +1326,17 @@ document.addEventListener("submit",async e=>{
   }catch(err){toast(err.message)}
 },true);
 
+// Precios rápidos: se guardan al salir del campo, para todas las tallas de ese color.
+document.addEventListener("change",async e=>{
+  const t=e.target;if(!t.dataset||!t.dataset.pp)return;const gr=groupIndex().get(t.dataset.k);if(!gr||t.value.trim()==="")return;
+  const n=num(t.value);if(t.dataset.pp==="price"&&!(n>0)){toast("El precio debe ser mayor a cero");return}
+  try{await saveGroupPrice(gr,t.dataset.pp==="price"?n:null,t.dataset.pp==="cost"?n:null);toast((t.dataset.pp==="price"?"Precio":"Costo")+" guardado: "+gr.name+(gr.color?" "+gr.color:""))}catch(err){toast(err.message)}
+});
+document.addEventListener("keydown",e=>{
+  if(ED.open)return;
+  if(e.key==="/"&&UI.tab==="vender"&&!/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||"")){e.preventDefault();const q=$("#pos-q");if(q)q.focus()}
+  if(e.key==="Escape"&&UI.pick){UI.pick=null;render()}
+});
 /* ---------- actions ---------- */
 // Promoción de primera compra: la caja la calcula para mostrarla y el servidor la vuelve a validar al guardar.
 const phoneKey=p=>{let d=String(p||"").replace(/\D/g,"");if(d.length===13&&d.startsWith("521"))d=d.slice(3);else if(d.length===12&&d.startsWith("52"))d=d.slice(2);return d};
@@ -1230,10 +1359,10 @@ function cartTotals(){
 async function checkout(){
   if(!UI.cart.length)return;
   const {sub,promo,promoDisc,tot}=cartTotals(),ts=Date.now();
-  const sale={ts,items:UI.cart.map(i=>({...i})),subtotal:sub,total:tot,method:$("#pos-method").value,channel:$("#pos-channel").value,
-    customer:$("#pos-cust").value.trim()||(promo&&promo.c?promo.c.name:""),phone:UI.phone||"",promo:promoDisc?"primera":""};
+  const sale={ts,items:UI.cart.map(i=>({...i})),subtotal:sub,total:tot,method:UI.method||"Efectivo",channel:UI.channel||"Tienda",
+    customer:(($("#pos-cust")||{}).value||"").trim()||(promo&&promo.c?promo.c.name:""),phone:UI.phone||"",promo:promoDisc?"primera":""};
   const btn=document.querySelector('[data-act="checkout"]');if(btn)btn.disabled=true;
-  try{await put("sales",uid(),sale);UI.lastSale=sale;UI.cart=[];UI.discount=0;UI.phone="";UI.usePromo=true;toast("Venta registrada: "+money(sale.total));render()}catch{if(btn)btn.disabled=false}
+  try{const cash=(UI.method||"Efectivo")==="Efectivo"?num(UI.cash):0;await put("sales",uid(),sale);UI.lastSale={...sale,cash};UI.cash="";UI.showDisc=false;UI.pick=null;UI.cart=[];UI.discount=0;UI.phone="";UI.usePromo=true;toast("Venta registrada: "+money(sale.total));render()}catch{if(btn)btn.disabled=false}
 }
 document.addEventListener("click",async e=>{
   const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,k=b.dataset.k;
@@ -1242,12 +1371,24 @@ document.addEventListener("click",async e=>{
     case "tab":UI.tab=k;UI.confirm=null;UI.editing=null;render();scrollTo(0,0);break;
     case "cat":UI.cat=k;render();break;
     case "season":UI.season=k;render();break;
-    case "add":{const p=S.products.find(x=>x.id===k);if(!p)break;if(!(num(p.price)>0)){toast("Esta prenda aún no tiene precio. Pónselo en el editor de prendas.");break}const i=UI.cart.find(x=>x.pid===k);const s=stockMap()[k]||0;
-      if((i?i.qty:0)>=s)toast("Ojo: el sistema marca "+s+" en tienda");
-      i?i.qty++:UI.cart.push({pid:p.id,name:p.name,size:p.size||"",qty:1,price:num(p.price),cost:num(p.cost)});render();break}
+    case "add":{const p=S.products.find(x=>x.id===k);if(!p)break;if(!(num(p.price)>0)){toast("Esta prenda aún no tiene precio.");break}const i=UI.cart.find(x=>x.pid===k);const s=stockMap()[k]||0;
+      if((i?i.qty:0)>=s)toast("Ojo: el sistema marca "+s+" en tienda de la talla "+(p.size||""));else toast("Agregado: talla "+(p.size||"única"));
+      const ph=p.photo?photoUrl(p):((S.products.find(x=>x.photo&&modelKey(x)===modelKey(p)&&(x.color||"")===(p.color||""))||{}).photo?photoUrl(S.products.find(x=>x.photo&&modelKey(x)===modelKey(p)&&(x.color||"")===(p.color||""))):"");
+      i?i.qty++:UI.cart.push({pid:p.id,name:p.name,size:p.size||"",color:p.color||"",photo:ph,qty:1,price:num(p.price),cost:num(p.cost)});UI.flash=p.id;UI.cash="";render();setTimeout(()=>{UI.flash=null},900);break}
+    case "pick":UI.pick=UI.pick===k&&b.classList.contains("mcard")?null:k;render();break;
+    case "pick-close":UI.pick=null;render();break;
+    case "rm-line":UI.cart.splice(+k,1);render();break;
+    case "method":UI.method=k;render();break;
+    case "channel":UI.channel=k;render();break;
+    case "cash":UI.cash=k;render();break;
+    case "show-disc":UI.showDisc=true;render();break;
+    case "toggle-lists":UI.showLists=!UI.showLists;render();break;
+    case "only-unpriced":UI.onlyUnpriced=!UI.onlyUnpriced;render();break;
+    case "pk-save":{const gr=groupIndex().get(k),pr=num($("#pk-price").value),co=$("#pk-cost").value;if(!gr)break;if(!(pr>0)){toast("Escribe el precio");break}
+      try{await saveGroupPrice(gr,pr,co?num(co):null);toast("Precio guardado para todas las tallas")}catch(err){toast(err.message)}break}
     case "inc":UI.cart[k].qty++;render();break;
     case "dec":UI.cart[k].qty--;if(UI.cart[k].qty<=0)UI.cart.splice(k,1);render();break;
-    case "clear-cart":UI.cart=[];UI.discount=0;render();break;
+    case "clear-cart":UI.cart=[];UI.discount=0;UI.cash="";UI.showDisc=false;render();break;
     case "checkout":checkout();break;
     case "new-sale":UI.lastSale=null;render();break;
     case "send-ticket":{const ph=$("#tk-phone").value;if(phoneDigits(ph).length<11){toast("Escribe el WhatsApp del cliente");break}
@@ -1307,6 +1448,8 @@ document.addEventListener("input",e=>{
   if(e.target.id==="pos-q"){UI.q=e.target.value;render()}
   if(e.target.id==="pos-desc"){UI.discount=e.target.value;render()}
   if(e.target.id==="pos-phone"){UI.phone=e.target.value;render()}
+  if(e.target.id==="pos-cash"){UI.cash=e.target.value;render()}
+  if(e.target.id==="cat-q"){UI.cq=e.target.value;render()}
   if(e.target.id==="pos-promo"){UI.usePromo=e.target.checked;render()}
   if(e.target.id==="cl-q"){UI.clq=e.target.value;render()}
 });
