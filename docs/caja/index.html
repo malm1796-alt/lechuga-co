@@ -285,6 +285,8 @@ let rq=0;function schedule(){if(!rq)rq=requestAnimationFrame(()=>{rq=0;render()}
 async function boot(){
   render();
   await refreshApi();render();
+  // Si todavía no hay ninguna cuenta y estamos en la PC de la tienda, se muestra el formulario de la primera cuenta.
+  if(!TOKEN&&API)try{const h=await (await fetch(API+"/api/salud")).json();if(h.primeraVez&&h.local){S.firstRun=true;lastKey="";render()}}catch{}
   if(TOKEN)try{await load()}catch(e){S.err=e.message;schedule()}
   setInterval(async()=>{
     if(!TOKEN||document.hidden)return;
@@ -712,6 +714,14 @@ function vAjustes(){
 async function loadUsers(){S.users=[];try{S.users=await api("GET","/api/usuarios")}catch(e){toast(e.message)}schedule()}
 
 function vLogin(){
+  if(S.firstRun)return `<div class="login"><div>${logoSVG(56)}</div><div><div class="eyebrow">Primera vez</div><h2>Crear cuenta de administrador</h2></div>
+  <p class="small muted" style="margin:0">Esta será la cuenta principal: puede hacer todo y crear los usuarios de los demás.</p>
+  ${S.loginMsg?`<div class="banner">${esc(S.loginMsg)}</div>`:""}
+  <form id="f-first"><label>Tu nombre<input id="fr-name" autocomplete="name" required></label>
+    <label>Usuario<input id="fr-user" autocomplete="username" autocapitalize="none" required placeholder="sin espacios"></label>
+    <label>Contraseña (mínimo 8 caracteres)<input id="fr-pw" type="password" autocomplete="new-password" required minlength="8"></label>
+    <label>Repite la contraseña<input id="fr-pw2" type="password" autocomplete="new-password" required minlength="8"></label>
+    <div><button class="primary" type="submit">Crear cuenta y entrar</button></div></form></div>`;
   return `<div class="login"><div>${logoSVG(56)}</div><div><div class="eyebrow">Caja de la tienda</div><h2>Entrar</h2></div>
   ${S.loginMsg?`<div class="banner">${esc(S.loginMsg)}</div>`:""}
   ${API?"":`<div class="banner">Esta página todavía no sabe dónde está la PC de la tienda. Enciéndela con <b>iniciar.bat</b> y espera un minuto.</div>`}
@@ -1085,6 +1095,10 @@ document.addEventListener("submit",async e=>{
   const dateTs=id=>{const d=v(id);if(!d)return Date.now();const [y,m,dd]=d.split("-").map(Number);const now=new Date();return d===dayKey(Date.now())?Date.now():+new Date(y,m-1,dd,12,0,0)};
   if(btn)btn.disabled=true;
   try{
+    if(f.id==="f-first"){
+      if(v("fr-pw")!==v("fr-pw2")){S.loginMsg="Las contraseñas no coinciden";lastKey="";render();return}
+      try{const r=await api("POST","/api/primera-cuenta",{name:v("fr-name").trim(),username:v("fr-user").trim(),password:v("fr-pw")});TOKEN=r.token;try{localStorage.setItem("lc-token",TOKEN)}catch{}
+        S.me=r.me;S.firstRun=false;S.loginMsg="";lastKey="";await load();toast("¡Bienvenido! Tu cuenta de administrador quedó creada.")}catch(err){S.loginMsg=err.message;lastKey="";render()}}
     if(f.id==="f-login"){
       try{const r=await api("POST","/api/login",{username:v("l-user").trim(),password:v("l-pw")});TOKEN=r.token;try{localStorage.setItem("lc-token",TOKEN)}catch{}
         S.me=r.me;S.loginMsg="";lastKey="";await load()}catch(err){S.loginMsg=err.message;lastKey="";render()}}

@@ -324,7 +324,23 @@ async function route(req, res) {
   }
   if (!p.startsWith("/api/")) return serveStatic(req, res, p === "/" ? "/index.html" : p);
 
-  if (m === "GET" && p === "/api/salud") return send(res, 200, { ok: true, version });
+  const noUsers = () => !db.prepare("SELECT COUNT(*) n FROM users").get().n;
+  if (m === "GET" && p === "/api/salud") return send(res, 200, { ok: true, version, primeraVez: noUsers(), local: isLocal(req) });
+  // La primera cuenta (administrador) solo se crea desde esta PC y solo si todavía no existe ninguna.
+  if (m === "POST" && p === "/api/primera-cuenta") {
+    if (!isLocal(req)) return fail(res, 403, "La primera cuenta solo se crea desde la PC de la tienda");
+    if (!noUsers()) return fail(res, 409, "Ya existe una cuenta de administrador. Entra con ella.");
+    const b = await readBody(req);
+    const username = str(b.username, 30).toLowerCase(), name = str(b.name, 60), password = String(b.password || "");
+    if (!name) return fail(res, 400, "Escribe tu nombre");
+    if (!/^[a-z0-9.&_-]{3,30}$/.test(username)) return fail(res, 400, "El usuario debe tener de 3 a 30 letras, números o los signos . & _ -, sin espacios");
+    if (password.length < 8) return fail(res, 400, "La contraseña debe tener al menos 8 caracteres");
+    createUser({ username, name, role: "admin", password });
+    const u = db.prepare("SELECT id, username, name, role FROM users WHERE username = ?").get(username);
+    const token = crypto.randomBytes(32).toString("hex");
+    db.prepare("INSERT INTO sessions(token, user_id, expires) VALUES (?, ?, ?)").run(token, u.id, Date.now() + SESSION_DAYS * 864e5);
+    return send(res, 200, { token, me: u });
+  }
   const photoGet = /^\/api\/fotos\/([A-Za-z0-9_-]+)$/.exec(p);
   if (m === "GET" && photoGet) {
     const ph = db.prepare("SELECT jpeg, mime FROM photos WHERE product_id = ?").get(photoGet[1]);
