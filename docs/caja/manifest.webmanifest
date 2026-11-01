@@ -1,0 +1,16 @@
+{
+  "name": "Caja Lechuga & Co.",
+  "short_name": "Caja L&C",
+  "description": "Caja, inventario y finanzas de Lechuga & Co.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f4f0",
+  "theme_color": "#101923",
+  "lang": "es-MX",
+  "icons": [
+    { "src": "../marca/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "../marca/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

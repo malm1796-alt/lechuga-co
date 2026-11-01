@@ -6,7 +6,12 @@
 <meta name="theme-color" content="#101923">
 <meta name="robots" content="noindex">
 <title>Caja · Lechuga &amp; Co.</title>
-<link rel="icon" href="../marca/sello.png" type="image/png">
+<link rel="icon" href="../marca/icono-192.png" type="image/png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="../marca/icono-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Caja L&amp;C">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
@@ -432,7 +437,7 @@ function vHoy(){
   const bym={};METHODS.forEach(m=>bym[m]=0);sales.forEach(s=>bym[s.method]=(bym[s.method]||0)+s.total);
   const cashOut=S.expenses.filter(e=>dayKey(e.ts)===t&&e.method==="Efectivo").reduce((x,e)=>x+e.amount,0)+S.purchases.filter(p=>dayKey(p.ts)===t&&p.type!=="ajuste"&&p.method==="Efectivo").reduce((x,p)=>x+p.total,0);
   const days=[];for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const k=dayKey(d);days.push({d:d.getDate(),l:fdate(+d),v:S.sales.filter(s=>dayKey(s.ts)===k).reduce((x,s)=>x+s.total,0)})}
-  const sm=stockMap(),low=activeProducts().filter(p=>(sm[p.id]||0)<=2);
+  const sm=stockMap(),low=activeProducts().filter(p=>num(p.price)>0&&(sm[p.id]||0)<=2);
   const wk=range("semana",0),pw=pnl(wk.a,wk.b),wa=sales.filter(s=>s.channel==="WhatsApp").length;
   return `<div class="row between"><div><div class="eyebrow">Venta del día</div><h2>${esc(fdate(Date.now(),{weekday:"long",day:"numeric",month:"long"}))}</h2></div><button class="primary" data-act="tab" data-k="vender">+ Nueva venta</button></div>
   <div class="kpis">
@@ -1022,7 +1027,7 @@ document.addEventListener("click",async e=>{
     case "tab":UI.tab=k;UI.confirm=null;UI.editing=null;render();scrollTo(0,0);break;
     case "cat":UI.cat=k;render();break;
     case "season":UI.season=k;render();break;
-    case "add":{const p=S.products.find(x=>x.id===k);if(!p)break;const i=UI.cart.find(x=>x.pid===k);const s=stockMap()[k]||0;
+    case "add":{const p=S.products.find(x=>x.id===k);if(!p)break;if(!(num(p.price)>0)){toast("Esta prenda aún no tiene precio. Pónselo en el editor de prendas.");break}const i=UI.cart.find(x=>x.pid===k);const s=stockMap()[k]||0;
       if((i?i.qty:0)>=s)toast("Ojo: el sistema marca "+s+" en tienda");
       i?i.qty++:UI.cart.push({pid:p.id,name:p.name,size:p.size||"",qty:1,price:num(p.price),cost:num(p.cost)});render();break}
     case "inc":UI.cart[k].qty++;render();break;

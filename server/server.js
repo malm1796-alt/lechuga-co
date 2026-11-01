@@ -230,7 +230,7 @@ function stockMap() {
 async function publishStore() {
   const st = getSettings(), sm = stockMap(), fotos = path.join(DOCS, "fotos");
   fs.mkdirSync(fotos, { recursive: true });
-  const products = db.prepare("SELECT * FROM products WHERE active = 1 ORDER BY name").all();
+  const products = db.prepare("SELECT * FROM products WHERE active = 1 AND price > 0 ORDER BY name").all(); // sin precio = borrador
   // Cada foto se guarda una sola vez, nombrada por su contenido: todas las tallas de un color comparten archivo.
   const keep = new Set();
   const items = products.map(p => {

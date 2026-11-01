@@ -10,6 +10,8 @@ const { db, ROOT, getSettings, saveSettings } = require("./db");
 const DIR = path.join(ROOT, "entrada");
 const FILE = process.argv.find(a => a.endsWith(".csv")) || path.join(DIR, "productos.csv");
 const APPLY = process.argv.includes("--aplicar");
+// --borrador carga también los renglones sin precio (quedan en $0: no se venden ni salen en la página hasta ponerles precio).
+const DRAFT = process.argv.includes("--borrador");
 const MIME = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
 const MAX_PHOTO = 6 * 1024 * 1024;
 
@@ -63,13 +65,14 @@ rows.forEach((r, i) => {
   if (!name) { skipped.push(`Renglón ${line}: sin nombre`); return; }
   const label = `${name} ${get(r, "color")} ${get(r, "talla")}`.replace(/\s+/g, " ").trim();
   const price = money(get(r, "precio")), cost = money(get(r, "costo")), pcs = money(get(r, "piezas"));
-  if (price === null) { skipped.push(`Renglón ${line}: ${label} — sin precio`); return; }
-  if (Number.isNaN(price) || price <= 0) { skipped.push(`Renglón ${line}: ${label} — el precio «${get(r, "precio")}» no es un número`); return; }
+  if (price === null && !DRAFT) { skipped.push(`Renglón ${line}: ${label} — sin precio`); return; }
+  if (price !== null && (Number.isNaN(price) || price <= 0)) { skipped.push(`Renglón ${line}: ${label} — el precio «${get(r, "precio")}» no es un número`); return; }
   if (Number.isNaN(cost) || Number.isNaN(pcs)) { skipped.push(`Renglón ${line}: ${label} — revisa costo o piezas`); return; }
   let id = (get(r, "codigo") || slug(`${name}-${get(r, "color")}-${get(r, "talla")}`)).replace(/[^A-Za-z0-9_-]+/g, "-").slice(0, 64);
   if (ids.has(id)) { skipped.push(`Renglón ${line}: ${label} — el código ${id} está repetido`); return; }
   ids.add(id);
-  if (!cost) warnings.push(`${label}: sin costo (la utilidad saldrá inflada)`);
+  if (price === null) warnings.push(`${label}: sin precio, queda como borrador`);
+  else if (!cost) warnings.push(`${label}: sin costo (la utilidad saldrá inflada)`);
   if (cost && cost >= price) warnings.push(`${label}: el costo (${cost}) es mayor o igual al precio (${price})`);
   let photo = null;
   const foto = get(r, "foto");
@@ -81,7 +84,7 @@ rows.forEach((r, i) => {
     else photo = { file: f, mime };
   }
   ok.push({ id, name, sku: get(r, "codigo"), category: get(r, "categoria"), season: get(r, "temporada"), color: get(r, "color"),
-    size: get(r, "talla"), price, cost: cost || 0, pcs: Math.max(0, Math.round(pcs || 0)), desc: get(r, "descripcion"), photo });
+    size: get(r, "talla"), price: price || 0, cost: cost || 0, pcs: Math.max(0, Math.round(pcs || 0)), desc: get(r, "descripcion"), photo });
 });
 
 const exists = new Set(db.prepare("SELECT id FROM products").all().map(p => p.id));
