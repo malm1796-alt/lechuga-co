@@ -6,6 +6,7 @@ const fs = require("node:fs");
 const crypto = require("node:crypto");
 const { execFile } = require("node:child_process");
 const { db, ROOT, getSettings, saveSettings, checkPassword, hashPassword, createUser, PHOTO_EXT, phoneKey } = require("./db");
+const agente = require("./agente");
 
 const PORT = Number(process.env.PORT || 8787);
 const DOCS = path.join(ROOT, "docs");
@@ -431,6 +432,53 @@ async function route(req, res) {
     bump(); return send(res, 200, { ok: true });
   }
   if (m === "GET" && p === "/api/promo") return send(res, 200, promoCheck(url.searchParams.get("tel"), num(url.searchParams.get("subtotal"))));
+
+  // Agente de publicidad: solo el administrador.
+  if (p.startsWith("/api/agente/")) {
+    if (!needAdmin()) return;
+    const sub = p.slice(12);
+    const fileOut = (file, mime) => send(res, 200, fs.readFileSync(file), { "Content-Type": mime, "Cache-Control": "private, max-age=3600" });
+    if (m === "GET" && sub === "estado") return send(res, 200, { ...agente.status(), posts: agente.posts(), research: agente.latestResearch(), music: agente.musicList(), log: agente.logRows() });
+    if (m === "PUT" && sub === "config") {
+      const c = {};
+      if (typeof b.auto === "boolean") c.auto = b.auto;
+      if (b.dailyMax !== undefined) c.dailyMax = Math.max(1, Math.min(10, Math.round(num(b.dailyMax))));
+      if (Array.isArray(b.times)) c.times = b.times.map(t => str(t, 5)).filter(t => /^\d{1,2}:\d{2}$/.test(t)).slice(0, 6);
+      if (b.networks && typeof b.networks === "object") c.networks = { facebook: !!b.networks.facebook, instagram: !!b.networks.instagram, tiktok: !!b.networks.tiktok };
+      if (b.graphVersion) c.graphVersion = /^v\d+\.\d+$/.test(b.graphVersion) ? b.graphVersion : "v23.0";
+      agente.saveCfg(c);
+      if (b.secrets && typeof b.secrets === "object") {
+        const allow = ["anthropicKey", "metaPageId", "metaPageToken", "igUserId", "tiktokClientKey", "tiktokClientSecret", "tiktokRefreshToken"];
+        agente.saveSecrets(Object.fromEntries(Object.entries(b.secrets).filter(([k]) => allow.includes(k))));
+      }
+      return send(res, 200, agente.status());
+    }
+    if (m === "POST" && sub === "probar") return send(res, 200, await agente.testConnections());
+    if (m === "POST" && sub === "investigar") return send(res, 200, { report: await agente.research() });
+    if (m === "POST" && sub === "campana") return send(res, 200, await agente.plan({ days: num(b.days) || 7, perWeek: num(b.perWeek) || 6, networks: Array.isArray(b.networks) ? b.networks : undefined }));
+    if (m === "GET" && sub === "musica") return send(res, 200, agente.musicList());
+    if (m === "POST" && sub === "musica") { agente.saveMusic(b); return send(res, 200, agente.musicList()); }
+    const mus = /^musica\/([^/]+)$/.exec(sub);
+    if (mus) {
+      const f = agente.musicPath(decodeURIComponent(mus[1]));
+      if (!f) return fail(res, 404, "Pista no encontrada");
+      if (m === "DELETE") { fs.rmSync(f); return send(res, 200, agente.musicList()); }
+      return fileOut(f, { ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav", ".ogg": "audio/ogg" }[path.extname(f).toLowerCase()] || "application/octet-stream");
+    }
+    const pz = /^piezas\/([a-f0-9]+)(\/(media|publicar))?$/.exec(sub);
+    if (pz) {
+      const [, id, , act] = pz;
+      if (act === "media" && m === "PUT") { agente.saveMedia(id, b); bump(); return send(res, 200, { ok: true }); }
+      if (act === "media" && m === "GET") {
+        const post = agente.posts().find(x => x.id === id), f = post && post.media_file && agente.mediaPath(post.media_file);
+        return f ? fileOut(f, /\.mp4$/.test(f) ? "video/mp4" : /\.png$/.test(f) ? "image/png" : "image/jpeg") : fail(res, 404, "Sin diseño");
+      }
+      if (act === "publicar" && m === "POST") { await agente.publish(id); return send(res, 200, { ok: true }); }
+      if (!act && m === "PUT") { agente.updatePost(id, b); return send(res, 200, { ok: true }); }
+      if (!act && m === "DELETE") { agente.removePost(id); return send(res, 200, { ok: true }); }
+    }
+    return fail(res, 404, "Ruta del agente no encontrada");
+  }
   if (m === "POST" && p === "/api/catalogo/guardar") { saveCatalog(b, user); bump(); return send(res, 200, { ok: true }); }
   if (p === "/api/clientes" && m === "POST") {
     const name = str(b.name, 80), phone = phoneKey(b.phone), email = str(b.email, 120).toLowerCase();
@@ -512,13 +560,17 @@ async function route(req, res) {
   return fail(res, 404, "Ruta no encontrada");
 }
 
-http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   route(req, res).catch(e => {
     if (res.headersSent) return res.end();
     const msg = e.message === "too_large" ? "El archivo es demasiado grande" : e.message === "bad_json" ? "Datos inválidos" : e.message;
     fail(res, 400, msg || "Error");
   });
-}).listen(PORT, () => {
+});
+server.requestTimeout = 10 * 60e3; // la investigación de tendencias con Claude puede tardar varios minutos
+// Cada minuto el agente revisa si hay piezas listas para publicar (solo con la publicación automática encendida).
+setInterval(() => agente.tick(bump), 60e3);
+server.listen(PORT, () => {
   const users = db.prepare("SELECT COUNT(*) n FROM users").get().n;
   console.log(`\n  Lechuga & Co. — servidor encendido`);
   console.log(`  Caja:            http://localhost:${PORT}/caja/`);

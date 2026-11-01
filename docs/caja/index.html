@@ -214,7 +214,7 @@ code.url{font-family:var(--f-mono);font-size:.82rem;background:var(--sunk);paddi
 <div id="toast" class="toast" hidden></div>
 <div id="overlay" class="overlay" hidden></div>
 <script>
-const TABS=[["hoy","Hoy"],["vender","Vender"],["catalogo","Catálogo"],["clientes","Clientes"],["movs","Gastos y compras"],["reportes","Estados financieros"],["conexiones","Conexiones"],["marca","Marca"],["ajustes","Ajustes"]];
+const TABS=[["hoy","Hoy"],["vender","Vender"],["catalogo","Catálogo"],["clientes","Clientes"],["movs","Gastos y compras"],["reportes","Estados financieros"],["conexiones","Conexiones"],["publicidad","Publicidad"],["marca","Marca"],["ajustes","Ajustes"]];
 // Dónde está el servidor: en la PC de la tienda es la misma dirección; desde GitHub Pages es la del túnel,
 // que tunel.js publica en config.json cada vez que la PC enciende.
 const REMOTE=/github\.io$/i.test(location.hostname);
@@ -409,7 +409,7 @@ function render(){
   const st=S.settings;
   $("#hdr-logo").innerHTML=logoSVG(30);$("#hdr-name").textContent=st.name;$("#hdr-tag").textContent=S.me?S.me.name+" · "+(isAdmin()?"Administrador":"Vendedor"):st.tagline||"";
   $("#hdr-today").innerHTML=esc(fdate(Date.now(),{weekday:"long",day:"numeric",month:"long"}))+(S.me?`<div><button class="ghost tiny" data-act="logout">Salir</button></div>`:"");
-  $("#tabs").innerHTML=S.me?TABS.map(([k,l])=>`<button data-act="tab" data-k="${k}" ${UI.tab===k?'aria-current="page"':""}>${l}</button>`).join(""):"";
+  $("#tabs").innerHTML=S.me?TABS.filter(([k])=>k!=="publicidad"||isAdmin()).map(([k,l])=>`<button data-act="tab" data-k="${k}" ${UI.tab===k?'aria-current="page"':""}>${l}</button>`).join(""):"";
   const key=(S.me?UI.tab:"login")+"|"+UI.editing+"|"+UI.mov+"|"+(UI.lastSale?1:0);
   const c=key===lastKey?capture():null;lastKey=key;
   let h="";
@@ -417,7 +417,7 @@ function render(){
   if(S.err)h+=`<div class="banner">${esc(S.err)} La app reintenta cada 15 segundos.</div>`;
   if(!S.ready){$("#main").innerHTML=h+`<div class="empty">Conectando con la PC de la tienda…</div>`;return}
   if(S.products.some(p=>p.example)||S.sales.some(s=>s.example))h+=`<div class="banner">Estás viendo <b>datos de ejemplo</b> para practicar. ${isAdmin()?'Bórralos en <a href="#" data-act="tab" data-k="ajustes">Ajustes</a>':"Pide al administrador que los borre"} antes de empezar a vender.</div>`;
-  h+=({hoy:vHoy,vender:vVender,catalogo:vCatalogo,clientes:vClientes,movs:vMovs,reportes:vReportes,conexiones:vConexiones,marca:vMarca,ajustes:vAjustes}[UI.tab])();
+  h+=({hoy:vHoy,vender:vVender,catalogo:vCatalogo,clientes:vClientes,movs:vMovs,reportes:vReportes,conexiones:vConexiones,publicidad:vPublicidad,marca:vMarca,ajustes:vAjustes}[UI.tab])();
   $("#main").innerHTML=h;restore(c);
 }
 
@@ -992,6 +992,221 @@ document.addEventListener("dragleave",e=>{const z=e.target.closest&&e.target.clo
 document.addEventListener("drop",e=>{const z=e.target.closest&&e.target.closest("[data-drop]");if(!z)return;e.preventDefault();z.classList.remove("over");edPhoto(+z.dataset.drop,e.dataTransfer.files[0])});
 document.addEventListener("keydown",e=>{if(!ED.open)return;if(e.key==="Escape"&&!ED.ask)edClose();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();edSave()}});
 window.addEventListener("beforeunload",e=>{if(ED.open&&ED.dirty){e.preventDefault();e.returnValue=""}});
+
+/* ---------- publicidad: agente + diseñador de piezas ---------- */
+// Claude arma el calendario en el servidor; aquí se diseña cada pieza (imagen o video) con las prendas y precios reales,
+// y el servidor la publica sola a su hora en Facebook, Instagram y TikTok.
+const AG={st:null,loading:false,busy:"",media:{},open:{}};
+const NETS={facebook:"Facebook",instagram:"Instagram",tiktok:"TikTok"};
+const FMT={post:"Imagen",historia:"Historia",video:"Video"};
+const AD_STATUS={"diseñar":["Por diseñar","warn"],listo:["Lista","good"],publicando:["Publicando",""],publicado:["Publicada","good"],parcial:["Publicada en parte","warn"],error:["Error","bad"],revisar:["Revisar","bad"],pausado:["Pausada",""]};
+async function agLoad(){if(AG.loading)return;AG.loading=true;try{AG.st=await api("GET","/api/agente/estado")}catch(e){toast(e.message)}AG.loading=false;schedule()}
+async function apiBlob(path){const r=await fetch(API+path,{headers:{Authorization:"Bearer "+TOKEN}});if(!r.ok)throw new Error("No se pudo descargar");return r.blob()}
+async function agMedia(p){if(!p.media_file)return null;if(AG.media[p.media_file])return AG.media[p.media_file];
+  try{AG.media[p.media_file]=URL.createObjectURL(await apiBlob(`/api/agente/piezas/${p.id}/media`));schedule()}catch{}return null}
+
+/* --- diseñador --- */
+const AD_N="#101923",AD_G="#d5a64b";
+const ease=x=>{x=Math.min(1,Math.max(0,x));return 1-Math.pow(1-x,3)};
+function loadImage(src){return new Promise(res=>{if(!src)return res(null);const i=new Image();i.crossOrigin="anonymous";i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src})}
+function cover(ctx,img,x,y,w,h,z=1){const s=Math.max(w/img.width,h/img.height)*z,iw=img.width*s,ih=img.height*s;ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.drawImage(img,x+(w-iw)/2,y+(h-ih)/2,iw,ih);ctx.restore()}
+function drawMtn(ctx,x,y,size,fg="#fff",snow=AD_G){ctx.save();ctx.translate(x,y);ctx.scale(size/100,size/100);ctx.lineWidth=4;ctx.lineJoin="round";ctx.lineCap="round";ctx.strokeStyle=fg;ctx.stroke(new Path2D(MTN_PATH));ctx.strokeStyle=snow;ctx.stroke(new Path2D(MTN_SNOW));ctx.restore()}
+function lines(ctx,text,maxW){const out=[];let cur="";for(const w of String(text||"").split(/\s+/)){const t=cur?cur+" "+w:w;if(ctx.measureText(t).width>maxW&&cur){out.push(cur);cur=w}else cur=t}if(cur)out.push(cur);return out}
+function text(ctx,str,x,y,{font,color="#fff",align="left",alpha=1,spacing=0}){ctx.save();ctx.globalAlpha=alpha;ctx.font=font;ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline="alphabetic";if("letterSpacing" in ctx)ctx.letterSpacing=spacing+"px";ctx.fillText(str,x,y);ctx.restore()}
+// Junta lo que la pieza necesita: fotos, precios y tallas reales de la base de datos.
+async function adAssets(post){
+  const sm=stockMap(),items=[];
+  for(const id of post.product_ids){const p=S.products.find(x=>x.id===id);if(!p)continue;
+    const fam=S.products.filter(x=>x.active!==false&&x.name===p.name&&(x.season||"")===(p.season||"")&&(x.color||"")===(p.color||"")&&num(x.price)>0);
+    const sizes=fam.filter(x=>(sm[x.id]||0)>0).map(x=>x.size).sort((a,b)=>sizeRank(a)-sizeRank(b));
+    const prices=fam.map(x=>num(x.price));const src=[p,...fam].find(x=>x.photo);
+    items.push({p,img:await loadImage(src?photoUrl(src):""),price:prices.length?Math.min(...prices):num(p.price),sameprice:new Set(prices).size<=1,sizes})}
+  const colors=[];if(post.template==="colores"&&items[0]){const p=items[0].p;
+    for(const x of S.products.filter(x=>x.active!==false&&x.name===p.name&&(x.season||"")===(p.season||"")&&x.photo)){if(!colors.some(c=>c.color===x.color))colors.push({color:x.color,img:null,src:photoUrl(x)})}
+    for(const c of colors)c.img=await loadImage(c.src)}
+  return {items,colors,promo:S.settings.promo&&S.settings.promo.active?S.settings.promo:null,phone:S.settings.phone,url:(S.settings.storeUrl||"").replace(/^https?:\/\//,"").replace(/\/$/,"")};
+}
+function drawAd(ctx,W,H,post,A,t){
+  const vid=post.format==="video",endAt=vid?.84:9,u=W/1080,a=(s,e)=>vid?ease((t-s)/(e-s)):1;
+  ctx.fillStyle=AD_N;ctx.fillRect(0,0,W,H);
+  const it=A.items[0]||{},z=vid?1.1-.1*t:1.02;
+  // Fondo: foto(s) de la prenda
+  if(post.template==="coleccion"&&A.items.length>1){const n=Math.min(4,A.items.length),cols=n>2?2:n,rows=Math.ceil(n/2),gw=W/cols,gh=H*.68/rows;
+    A.items.slice(0,4).forEach((x,i)=>{if(x.img)cover(ctx,x.img,(i%cols)*gw,(Math.floor(i/cols))*gh,gw-(i%cols<cols-1?6*u:0),gh-6*u,z)})}
+  else if(post.template==="colores"&&A.colors.length>1){const n=Math.min(4,A.colors.length),cw=W/n;A.colors.slice(0,4).forEach((c,i)=>{if(c.img)cover(ctx,c.img,i*cw,0,cw-6*u,H*.72,z*(1+.03*i))})}
+  else if(it.img)cover(ctx,it.img,0,0,W,H*.78,z);
+  const g=ctx.createLinearGradient(0,H*.42,0,H);g.addColorStop(0,"rgba(16,25,35,0)");g.addColorStop(.42,"rgba(16,25,35,.88)");g.addColorStop(1,AD_N);ctx.fillStyle=g;ctx.fillRect(0,H*.42,W,H*.58);
+  const tg=ctx.createLinearGradient(0,0,0,220*u);tg.addColorStop(0,"rgba(16,25,35,.75)");tg.addColorStop(1,"rgba(16,25,35,0)");ctx.fillStyle=tg;ctx.fillRect(0,0,W,220*u);
+  // Encabezado con el logo
+  drawMtn(ctx,56*u,52*u,92*u);text(ctx,"LECHUGA & CO.",168*u,104*u,{font:`700 ${38*u}px Montserrat`,spacing:6*u,alpha:a(0,.08)});
+  // Insignia de promoción
+  if(A.promo&&post.template!=="promo"){const r=96*u,cx=W-r-48*u,cy=r+44*u,s=a(.1,.2);ctx.save();ctx.globalAlpha=s;ctx.fillStyle=AD_G;ctx.beginPath();ctx.arc(cx,cy,r*s,0,7);ctx.fill();ctx.restore();
+    text(ctx,A.promo.percent+"%",cx,cy+8*u,{font:`italic 800 ${64*u}px Montserrat`,color:AD_N,align:"center",alpha:s});text(ctx,"1ª COMPRA",cx,cy+46*u,{font:`800 ${22*u}px Montserrat`,color:AD_N,align:"center",alpha:s,spacing:2*u})}
+  // Gancho de los primeros segundos (solo video)
+  if(vid&&post.hook&&t<.3){const al=Math.min(a(0,.05),1-ease((t-.24)/.06));ctx.save();ctx.font=`italic 800 ${76*u}px Montserrat`;const ls=lines(ctx,post.hook.toUpperCase(),W-160*u).slice(0,4);ctx.restore();
+    ls.forEach((l,i)=>text(ctx,l,W/2,H*.38+i*86*u,{font:`italic 800 ${76*u}px Montserrat`,align:"center",alpha:al}))}
+  // Bloque inferior: título, frase y precio
+  const show=vid?a(.28,.4):1,dy=(1-show)*60*u;let y=H-(post.format==="post"?440:520)*u+dy;
+  ctx.save();ctx.font=`italic 800 ${(post.format==="post"?84:96)*u}px Montserrat`;const hl=lines(ctx,(post.headline||it.p&&it.p.name||"").toUpperCase(),W-120*u).slice(0,2);ctx.restore();
+  y-=(hl.length-1)*(post.format==="post"?88:100)*u;
+  hl.forEach((l,i)=>text(ctx,l,60*u,y+i*(post.format==="post"?88:100)*u,{font:`italic 800 ${(post.format==="post"?84:96)*u}px Montserrat`,color:i===hl.length-1&&hl.length>1?AD_G:"#fff",alpha:show}));
+  y+=hl.length*(post.format==="post"?88:100)*u-20*u;
+  if(post.subline){ctx.save();ctx.font=`500 ${34*u}px Poppins`;const sl=lines(ctx,post.subline,W-120*u).slice(0,2);ctx.restore();sl.forEach((l,i)=>text(ctx,l,60*u,y+i*46*u,{font:`500 ${34*u}px Poppins`,color:"#dfe4e8",alpha:show}));y+=sl.length*46*u+30*u}
+  const pa=vid?a(.42,.52):1;
+  if(post.template==="promo"&&A.promo){text(ctx,A.promo.percent+"% EN TU PRIMERA COMPRA",60*u,y+40*u,{font:`italic 800 ${50*u}px Montserrat`,color:AD_G,alpha:pa});
+    text(ctx,`Regístrate en la página · compras desde ${money(A.promo.minimum)}`,60*u,y+92*u,{font:`500 ${30*u}px Poppins`,color:"#fff",alpha:pa})}
+  else if(it.p){const pr=(post.template==="coleccion"||!it.sameprice?"Desde ":"")+money(Math.min(...A.items.map(x=>x.price)));
+    text(ctx,pr,60*u,y+56*u,{font:`800 ${64*u}px Montserrat`,color:AD_G,alpha:pa});
+    const info=post.template==="colores"&&A.colors.length>1?`${A.colors.length} colores · ${A.colors.map(c=>c.color).join(", ")}`:it.sizes.length?"Tallas "+it.sizes.join(" · "):"";
+    if(info){ctx.save();ctx.font=`500 ${30*u}px Poppins`;const il=lines(ctx,info,W-120*u)[0];ctx.restore();text(ctx,il,60*u,y+104*u,{font:`500 ${30*u}px Poppins`,color:"#fff",alpha:pa})}}
+  // Pie
+  ctx.save();ctx.globalAlpha=vid?a(.5,.6):1;ctx.fillStyle=AD_G;ctx.fillRect(60*u,H-118*u,W-120*u,3*u);ctx.restore();
+  text(ctx,"Pide por WhatsApp"+(A.phone?" · "+A.phone:""),60*u,H-64*u,{font:`600 ${30*u}px Poppins`,alpha:vid?a(.5,.6):1});
+  if(A.url)text(ctx,A.url,W-60*u,H-64*u,{font:`500 ${24*u}px Poppins`,color:"#aab3bc",align:"right",alpha:vid?a(.5,.6):1});
+  // Cierre del video
+  if(vid&&t>endAt){const e=ease((t-endAt)/.08);ctx.save();ctx.globalAlpha=e;ctx.fillStyle=AD_N;ctx.fillRect(0,0,W,H);ctx.restore();
+    drawMtn(ctx,W/2-130*u,H*.36,260*u);text(ctx,"LECHUGA & CO.",W/2,H*.36+250*u,{font:`700 ${72*u}px Montserrat`,align:"center",spacing:10*u,alpha:e});
+    text(ctx,"ROPA · CHAMARRAS · SUDADERAS",W/2,H*.36+310*u,{font:`600 ${26*u}px Montserrat`,align:"center",color:"#cfd6dd",spacing:8*u,alpha:e});
+    text(ctx,"Pide por WhatsApp",W/2,H*.62,{font:`italic 800 ${58*u}px Montserrat`,align:"center",color:AD_G,alpha:e});
+    if(A.phone)text(ctx,A.phone,W/2,H*.62+70*u,{font:`600 ${44*u}px Poppins`,align:"center",alpha:e});
+    if(A.url)text(ctx,A.url,W/2,H*.62+130*u,{font:`500 ${30*u}px Poppins`,align:"center",color:"#aab3bc",alpha:e})}
+}
+const adSize=f=>f==="post"?[1080,1350]:[1080,1920];
+function pickTrack(mood){const list=(AG.st&&AG.st.music)||[];if(!list.length)return "";const m=list.filter(x=>x.file.startsWith(mood+"--"));const pool=m.length?m:list;return pool[Math.floor(Math.random()*pool.length)].file}
+function blobToDataURL(b){return new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(b)})}
+async function designPost(post,onStep){
+  await document.fonts.ready;const A=await adAssets(post);if(!A.items.length)throw new Error("Las prendas de esta pieza ya no existen");
+  const [W,H]=adSize(post.format),cv=document.createElement("canvas");cv.width=W;cv.height=H;const ctx=cv.getContext("2d");
+  const prices=Object.fromEntries(post.product_ids.map(id=>[id,num((S.products.find(p=>p.id===id)||{}).price)]));
+  if(post.format!=="video"){drawAd(ctx,W,H,post,A,1);return {data:cv.toDataURL("image/jpeg",.9),prices,track:""}}
+  const mime=["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4;codecs=avc1","video/mp4"].find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m));
+  if(!mime)throw new Error("Este navegador no graba video MP4. Abre la caja en Chrome o Edge actualizado para diseñar videos.");
+  const dur=9000,stream=cv.captureStream(30),track=pickTrack(post.music_mood);let ac=null,src=null;
+  if(track){try{ac=new AudioContext();const buf=await ac.decodeAudioData(await (await apiBlob("/api/agente/musica/"+encodeURIComponent(track))).arrayBuffer());
+    src=ac.createBufferSource();src.buffer=buf;const gain=ac.createGain();const dest=ac.createMediaStreamDestination();
+    gain.gain.setValueAtTime(0,ac.currentTime);gain.gain.linearRampToValueAtTime(.9,ac.currentTime+.4);gain.gain.setValueAtTime(.9,ac.currentTime+dur/1000-1.2);gain.gain.linearRampToValueAtTime(0,ac.currentTime+dur/1000);
+    src.connect(gain).connect(dest);dest.stream.getAudioTracks().forEach(t=>stream.addTrack(t))}catch{ac=null;src=null}}
+  const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6e6}),chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  const stopped=new Promise(r=>rec.onstop=r);drawAd(ctx,W,H,post,A,0);rec.start(250);if(src)src.start();const t0=performance.now();
+  await new Promise(res=>{const frame=()=>{const t=(performance.now()-t0)/dur;drawAd(ctx,W,H,post,A,Math.min(1,t));if(onStep)onStep(Math.min(1,t));if(t<1)requestAnimationFrame(frame);else res()};requestAnimationFrame(frame)});
+  rec.stop();await stopped;if(ac)ac.close();stream.getTracks().forEach(t=>t.stop());
+  return {data:await blobToDataURL(new Blob(chunks,{type:"video/mp4"})),prices,track};
+}
+async function designMany(list){
+  for(let i=0;i<list.length;i++){const p=list[i];AG.busy=`Diseñando pieza ${i+1} de ${list.length}${p.format==="video"?" (video de 9 segundos, no cambies de pestaña)":""}…`;schedule();
+    try{const r=await designPost(p);await api("PUT",`/api/agente/piezas/${p.id}/media`,r)}catch(e){toast(e.message);if(/navegador/.test(e.message))break}}
+  AG.busy="";await agLoad();
+}
+
+/* --- pestaña --- */
+function vPublicidad(){
+  if(!isAdmin())return `<div class="empty">La publicidad solo la maneja el administrador.</div>`;
+  if(!AG.st){agLoad();return `<div class="empty">Cargando el agente de publicidad…</div>`}
+  const s=AG.st,c=s.cfg,posts=s.posts,now=Date.now(),count=st=>posts.filter(p=>p.status===st).length;
+  const nets=Object.keys(NETS).filter(n=>s[n]),upcoming=posts.filter(p=>p.status!=="publicado"||p.scheduled_at>now-7*864e5);
+  return `<div class="row between"><div><div class="eyebrow">Agente de publicidad</div><h2>Publicidad en redes</h2></div>
+    <button class="${c.auto?"primary":""}" data-pb="auto" style="padding:12px 18px">${c.auto?"● Publicación automática ENCENDIDA":"○ Publicación automática APAGADA"}</button></div>
+  ${AG.busy?`<div class="banner">${esc(AG.busy)}</div>`:""}
+  ${!s.claude?`<div class="banner">Para empezar, pon tu clave de Claude en <b>Conexiones</b> (abajo).</div>`:""}
+  <div class="kpis"><div class="kpi hero"><div class="eyebrow">Listas para publicar</div><div class="v">${count("listo")}</div><div class="h">${c.auto?`Máximo ${c.dailyMax} por día`:"La publicación está apagada"}</div></div>
+    <div class="kpi"><div class="eyebrow">Por diseñar</div><div class="v">${count("diseñar")}</div><div class="h">${count("diseñar")?`<button class="tiny" data-pb="design-all">Diseñar ahora</button>`:"Todo diseñado"}</div></div>
+    <div class="kpi"><div class="eyebrow">Publicadas</div><div class="v">${count("publicado")+count("parcial")}</div><div class="h">${count("parcial")} con alguna red fallida</div></div>
+    <div class="kpi"><div class="eyebrow">Por revisar</div><div class="v">${count("revisar")+count("error")}</div><div class="h">Precio cambió, se agotó o falló</div></div></div>
+  <div class="card" style="display:grid;gap:12px"><h3>Nueva campaña</h3>
+    <div class="form"><label>Duración<select id="pb-days"><option value="7">1 semana</option><option value="14">2 semanas</option><option value="30">1 mes</option></select></label>
+      <label>Piezas por semana<select id="pb-pw">${[3,5,7,10,14].map(n=>`<option ${n===7?"selected":""}>${n}</option>`).join("")}</select></label>
+      <div class="full row">${Object.entries(NETS).map(([k,l])=>`<label style="display:flex;gap:6px;align-items:center;font-weight:600"><input type="checkbox" id="pb-n-${k}" style="width:auto" ${c.networks[k]?"checked":""}> ${l}${s[k]?"":` <span class="pill">sin conectar</span>`}</label>`).join("")}</div></div>
+    <div class="row"><button data-pb="research" ${AG.busy||!s.claude?"disabled":""}>1. Investigar tendencias</button><button class="primary" data-pb="campaign" ${AG.busy||!s.claude?"disabled":""}>2. Crear campaña y diseñar</button>
+      <span class="small muted">${s.research?"Tendencias del "+fdate(s.research.created_at):"Aún no hay investigación de tendencias"}</span></div>
+    <p class="small muted" style="margin:0">Claude busca qué formatos están funcionando, elige tus prendas con existencias y escribe textos originales. La caja diseña las imágenes y videos con tus fotos, precios reales y logo. Deja esta pestaña abierta mientras se diseñan los videos.</p></div>
+  ${upcoming.length?`<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))">${upcoming.map(p=>pbCard(p)).join("")}</div>`:`<div class="empty">Aún no hay piezas. Crea tu primera campaña.</div>`}
+  <div class="grid g2">${pbMusic(s)}${pbConn(s)}</div>
+  ${s.research?`<div class="card" style="display:grid;gap:8px"><div class="row between"><h3>Tendencias investigadas</h3><button class="tiny ghost" data-pb="toggle-research">${AG.open.research?"Ocultar":"Ver informe"}</button></div>${AG.open.research?`<div class="small" style="white-space:pre-wrap;max-width:80ch">${esc(s.research.report)}</div>`:""}</div>`:""}
+  ${s.log.length?`<div class="card"><h3>Registro</h3><div class="tbl" style="margin-top:8px"><table><tbody>${s.log.slice(0,15).map(l=>`<tr><td class="num">${fdate(l.ts)} ${ftime(l.ts)}</td><td>${esc(NETS[l.network]||"")}</td><td><span class="pill ${l.ok?"good":"bad"}">${l.ok?"OK":"Falló"}</span></td><td style="white-space:normal">${esc(l.detail||"")}</td></tr>`).join("")}</tbody></table></div></div>`:""}`;
+}
+function pbCard(p){
+  const [lab,cls]=AD_STATUS[p.status]||[p.status,""],url=p.media_file?AG.media[p.media_file]||(agMedia(p),null):null,d=new Date(p.scheduled_at);
+  const local=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}T${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  return `<div class="card" style="display:grid;gap:8px;align-content:start;padding:12px">
+    <div style="aspect-ratio:${p.format==="post"?"4/5":"9/16"};max-height:360px;background:#101923;border-radius:6px;overflow:hidden;display:grid;place-items:center">${url?(/\.mp4$/.test(p.media_file)?`<video src="${url}" controls playsinline style="width:100%;height:100%;object-fit:contain"></video>`:`<img src="${url}" alt="" style="width:100%;height:100%;object-fit:contain">`):`<span class="small" style="color:#cfd6dd">${p.media_file?"Cargando…":"Por diseñar"}</span>`}</div>
+    <div class="row between"><span class="pill ${cls}">${lab}</span><span class="small muted">${FMT[p.format]} · ${p.networks.map(n=>NETS[n]).join(", ")}</span></div>
+    ${p.error?`<div class="small" style="color:var(--bad)">${esc(p.error)}</div>`:""}
+    <b>${esc(p.headline)}</b>
+    <label class="small">Publicar el<input type="datetime-local" data-pbf="when" data-k="${p.id}" value="${local}"></label>
+    <label class="small">Texto<textarea data-pbf="caption" data-k="${p.id}" rows="4" style="font-family:var(--f-body)">${esc(p.caption)}</textarea></label>
+    <div class="small muted">${p.hashtags.map(esc).join(" ")}</div>
+    <div class="small muted">Formato en tendencia: ${esc(p.trend||"—")}${p.format==="video"?`<br>Música: ${p.track?esc(p.track.replace(/^[a-z]+--/,"")):"sin música (sube pistas abajo)"} · Sugerencia: ${esc(p.music_tip||"")}`:""}</div>
+    ${p.results?`<div class="small">${Object.entries(p.results).map(([n,r])=>`${NETS[n]}: ${r.ok?"✓":"✕ "+esc(r.error)}`).join(" · ")}</div>`:""}
+    <div class="row">${p.status!=="publicado"?`<button class="tiny" data-pb="design" data-k="${p.id}" ${AG.busy?"disabled":""}>${p.media_file?"Rediseñar":"Diseñar"}</button>`:""}
+      ${p.media_file&&p.status!=="publicado"?`<button class="tiny primary" data-pb="publish" data-k="${p.id}">Publicar ahora</button>`:""}
+      ${p.status==="listo"?`<button class="tiny ghost" data-pb="pause" data-k="${p.id}">Pausar</button>`:p.status==="pausado"&&p.media_file?`<button class="tiny ghost" data-pb="resume" data-k="${p.id}">Reanudar</button>`:""}
+      ${UI.confirm==="ad"+p.id?`<button class="tiny danger" data-pb="del" data-k="${p.id}">Borrar</button><button class="tiny ghost" data-act="no">No</button>`:`<button class="tiny ghost danger" data-act="ask" data-k="ad${p.id}">Borrar</button>`}</div></div>`;
+}
+function pbMusic(s){
+  return `<div class="card" style="display:grid;gap:10px;align-content:start"><h3>Música con licencia</h3>
+    <p class="small muted" style="margin:0">Sube solo música que puedas usar en publicidad, por ejemplo de la biblioteca de audio de YouTube o de Pixabay Music. Las canciones de moda tienen derechos y las redes bloquean los anuncios que las usan.</p>
+    ${s.music.length?`<div class="tbl"><table><tbody>${s.music.map(m=>`<tr><td>${esc(m.file.replace(/^[a-z]+--/,"").replace(/\.[a-z0-9]+$/,""))}</td><td><span class="pill">${esc(m.file.split("--")[0])}</span></td><td class="r">${m.kb} KB</td><td><button class="tiny ghost danger" data-pb="del-music" data-k="${esc(m.file)}">Quitar</button></td></tr>`).join("")}</tbody></table></div>`:`<p class="small" style="margin:0">Sin pistas: los videos saldrán sin música.</p>`}
+    <form id="f-music" class="form"><label class="full">Archivo (MP3, M4A, WAV)<input type="file" id="mu-file" accept="audio/*" required></label>
+      <label>Ambiente<select id="mu-mood"><option value="energetica">Energética</option><option value="urbana" selected>Urbana</option><option value="tranquila">Tranquila</option><option value="elegante">Elegante</option></select></label>
+      <label style="display:flex;gap:8px;align-items:center;align-self:end"><input type="checkbox" id="mu-ok" style="width:auto" required> Tengo derecho de uso comercial</label>
+      <div><button type="submit">Subir pista</button></div></form></div>`;
+}
+function pbConn(s){
+  const c=s.cfg,ok=v=>v?'<span class="pill good">Conectado</span>':'<span class="pill">Sin conectar</span>',ph=v=>v?"Guardada · escribe para cambiarla":"";
+  return `<form class="card" id="f-agent" style="display:grid;gap:10px;align-content:start"><div class="row between"><h3>Conexiones</h3><button type="button" class="tiny" data-pb="test">Probar conexiones</button></div>
+    ${AG.test?`<div class="small">${Object.entries(AG.test).map(([k,r])=>`<div><b>${k==="claude"?"Claude":NETS[k]}</b>: ${r.ok?"✓":"✕"} ${esc(r.detail)}</div>`).join("")}</div>`:""}
+    <p class="small muted" style="margin:0">Las claves se guardan solo en esta PC (C:\\LechugaCo\\data) y nunca se suben a GitHub.</p>
+    <div class="row between"><b>Claude</b>${ok(s.claude)}</div>
+    <label>Clave de API de Anthropic<input type="password" id="ag-key" autocomplete="off" placeholder="${ph(s.claude)||"sk-ant-…"}"></label>
+    <div class="row between"><b>Facebook e Instagram</b>${ok(s.facebook)} ${ok(s.instagram)}</div>
+    <label>ID de la página de Facebook<input id="ag-page" autocomplete="off" placeholder="${s.facebook?"Guardado":"Número de la página"}"></label>
+    <label>Token de acceso de la página<input type="password" id="ag-ptok" autocomplete="off" placeholder="${ph(s.facebook)}"></label>
+    <label>ID de la cuenta de Instagram empresarial<input id="ag-ig" autocomplete="off" placeholder="${s.instagram?"Guardado":"Número de la cuenta"}"></label>
+    <div class="row between"><b>TikTok</b>${ok(s.tiktok)}</div>
+    <label>Client key<input id="ag-tk" autocomplete="off" placeholder="${s.tiktok?"Guardado":""}"></label>
+    <label>Client secret<input type="password" id="ag-ts" autocomplete="off" placeholder="${ph(s.tiktok)}"></label>
+    <label>Refresh token<input type="password" id="ag-tr" autocomplete="off" placeholder="${ph(s.tiktok)}"></label>
+    <div class="form"><label>Máximo por día<input id="ag-max" inputmode="numeric" value="${c.dailyMax}"></label><label>Horarios<input id="ag-times" value="${esc(c.times.join(", "))}"></label></div>
+    <div><button class="primary" type="submit">Guardar conexiones</button></div>
+    <p class="small muted" style="margin:0">La guía paso a paso para sacar cada clave está en <code class="url">C:\\LechugaCo\\publicidad\\LEEME.md</code>.</p></form>`;
+}
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-pb]");if(!b)return;const a=b.dataset.pb,k=b.dataset.k,s=AG.st;
+  try{
+    if(a==="auto"){const on=!s.cfg.auto;if(on&&!s.posts.some(p=>p.status==="listo"))toast("Encendida. Se publicará en cuanto haya piezas listas.");AG.st={...s,...await api("PUT","/api/agente/config",{auto:on})};await agLoad();toast(on?"Publicación automática encendida":"Publicación automática apagada: no se publicará nada")}
+    if(a==="research"){AG.busy="Claude está investigando tendencias en internet (1 a 3 minutos)…";schedule();await api("POST","/api/agente/investigar");AG.busy="";AG.open.research=true;await agLoad()}
+    if(a==="campaign"){const networks=Object.keys(NETS).filter(n=>$("#pb-n-"+n)&&$("#pb-n-"+n).checked);if(!networks.length){toast("Elige al menos una red");return}
+      AG.busy="Claude está armando la campaña con tus prendas (1 a 2 minutos)…";schedule();
+      const r=await api("POST","/api/agente/campana",{days:num($("#pb-days").value),perWeek:num($("#pb-pw").value),networks});await agLoad();
+      toast(`Campaña lista: ${r.count} piezas. Ahora se diseñan.`);await designMany(AG.st.posts.filter(p=>p.campaign===r.campaign))}
+    if(a==="design-all")await designMany(s.posts.filter(p=>p.status==="diseñar"));
+    if(a==="design"){const p=s.posts.find(x=>x.id===k);if(p)await designMany([p])}
+    if(a==="publish"){AG.busy="Publicando… (subir la pieza y que la tomen las redes puede tardar unos minutos)";schedule();await api("POST",`/api/agente/piezas/${k}/publicar`);AG.busy="";await agLoad();toast("Revisa el resultado en la pieza")}
+    if(a==="pause"||a==="resume"){await api("PUT","/api/agente/piezas/"+k,{status:a==="pause"?"pausado":"listo"});await agLoad()}
+    if(a==="del"){UI.confirm=null;await api("DELETE","/api/agente/piezas/"+k);await agLoad()}
+    if(a==="del-music"){await api("DELETE","/api/agente/musica/"+encodeURIComponent(k));await agLoad()}
+    if(a==="test"){AG.test={claude:{ok:false,detail:"Probando…"}};schedule();AG.test=await api("POST","/api/agente/probar");schedule()}
+    if(a==="toggle-research"){AG.open.research=!AG.open.research;schedule()}
+  }catch(err){AG.busy="";toast(err.message);schedule()}
+});
+document.addEventListener("change",async e=>{
+  const t=e.target;if(!t.dataset||!t.dataset.pbf)return;
+  try{if(t.dataset.pbf==="caption")await api("PUT","/api/agente/piezas/"+t.dataset.k,{caption:t.value});
+    if(t.dataset.pbf==="when"&&t.value)await api("PUT","/api/agente/piezas/"+t.dataset.k,{scheduled_at:+new Date(t.value)});
+    toast("Guardado");await agLoad()}catch(err){toast(err.message)}
+});
+document.addEventListener("submit",async e=>{
+  const f=e.target;if(f.id!=="f-agent"&&f.id!=="f-music")return;e.preventDefault();e.stopImmediatePropagation();
+  try{
+    if(f.id==="f-agent"){const v=id=>($(id)||{}).value||"";
+      await api("PUT","/api/agente/config",{dailyMax:num(v("#ag-max")),times:v("#ag-times").split(/[,\s]+/).filter(Boolean),
+        secrets:{anthropicKey:v("#ag-key"),metaPageId:v("#ag-page"),metaPageToken:v("#ag-ptok"),igUserId:v("#ag-ig"),tiktokClientKey:v("#ag-tk"),tiktokClientSecret:v("#ag-ts"),tiktokRefreshToken:v("#ag-tr")}});
+      f.reset();await agLoad();toast("Conexiones guardadas")}
+    if(f.id==="f-music"){const file=$("#mu-file").files[0];if(!file)return;if(file.size>15e6){toast("La pista pesa más de 15 MB");return}
+      let data=await blobToDataURL(file);if(/^data:audio\/mp3;/.test(data))data=data.replace("data:audio/mp3;","data:audio/mpeg;");
+      await api("POST","/api/agente/musica",{name:file.name.replace(/\.[a-z0-9]+$/i,""),mood:$("#mu-mood").value,licencia:$("#mu-ok").checked,data});f.reset();await agLoad();toast("Pista agregada")}
+  }catch(err){toast(err.message)}
+},true);
 
 /* ---------- actions ---------- */
 // Promoción de primera compra: la caja la calcula para mostrarla y el servidor la vuelve a validar al guardar.

@@ -1,0 +1,11 @@
+{
+  "name": "lechuga-co",
+  "private": true,
+  "description": "Caja, página web, finanzas y agente de publicidad de Lechuga & Co.",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0"
+  }
+}
