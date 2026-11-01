@@ -153,6 +153,45 @@ img{max-width:100%}
 .flow .node{border:1.5px dashed var(--thread);border-radius:8px;padding:8px 12px;font-weight:700;background:var(--surface)}
 .flow .arrow{color:var(--muted)}
 code.url{font-family:var(--f-mono);font-size:.82rem;background:var(--sunk);padding:2px 6px;border-radius:4px;word-break:break-all}
+/* Editor de catálogo: ventana a pantalla completa con lista, formulario y vista previa de la página. */
+.ed{position:fixed;inset:0;z-index:18;background:var(--bg);display:grid;grid-template-rows:auto auto 1fr;padding-top:env(safe-area-inset-top,0px)}
+.ed-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:var(--surface);border-bottom:1px solid var(--line)}
+.ed-ask{margin:10px 16px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ed-body{display:grid;grid-template-columns:290px minmax(0,1fr) 330px;min-height:0;grid-row:3}
+.ed-list{overflow:auto;border-right:1px solid var(--line);padding:14px;display:grid;gap:6px;align-content:start}
+.ed-item{display:grid;grid-template-columns:46px minmax(0,1fr);gap:10px;align-items:center;text-align:left;padding:6px;border-radius:8px;border:1px solid transparent;background:transparent;font-weight:400}
+.ed-item:hover{background:var(--surface)}
+.ed-item[aria-current]{border-color:var(--denim);background:var(--surface)}
+.ed-item img,.ed-item .ed-noph{width:46px;height:58px;object-fit:cover;border-radius:4px}
+.ed-item b{display:block;font-size:.86rem;line-height:1.25}
+.ed-noph{display:grid;place-items:center;background:#101923;border-radius:4px}
+.ed-form{overflow:auto;padding:16px;display:grid;gap:14px;align-content:start}
+.ed-sec{display:grid;gap:12px}
+.ed-color{display:grid;grid-template-columns:170px minmax(0,1fr);gap:16px}
+.photo-drop{position:relative;width:170px;aspect-ratio:4/5;max-width:100%;border:2px dashed var(--line);border-radius:8px;display:grid;place-items:center;overflow:hidden;background:var(--sunk);cursor:pointer}
+.photo-drop img{width:100%;height:100%;object-fit:cover}
+.photo-drop.over{border-color:var(--thread);background:var(--thread-soft)}
+.photo-drop input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.ed-sw{display:inline-block;width:18px;height:18px;border-radius:50%;border:1px solid var(--line);flex:none}
+.ed-tbl td{padding:5px 6px}
+.ed-tbl input{padding:6px 8px;font-size:.88rem}
+.ed-off td{opacity:.45}
+.ed-prev{overflow:auto;border-left:1px solid var(--line);padding:16px;background:var(--sunk)}
+.pv-card,.pv-sheet{background:#fff;color:#101923;border-radius:8px;overflow:hidden;font-family:"Poppins",sans-serif}
+.pv-sheet{padding:14px;display:grid;gap:8px}
+.pv-ph{position:relative;aspect-ratio:4/5;max-width:100%;background:#eeece6;overflow:hidden;border-radius:6px}
+.pv-ph img{width:100%;height:100%;object-fit:cover;display:block}
+.pv-card .pv-ph{border-radius:0}
+.pv-info{padding:10px 14px 14px;display:grid;gap:3px}
+.pv-info b{font:600 .9rem "Montserrat",sans-serif}
+.pv-price{font:700 1rem "Montserrat",sans-serif;color:#b88a33}
+.pv-flag{position:absolute;top:8px;left:8px;background:#d5a64b;color:#101923;padding:2px 8px;font:800 .58rem "Montserrat",sans-serif;letter-spacing:.14em;text-transform:uppercase}
+.pv-chip{display:inline-flex;gap:6px;align-items:center;border:1.5px solid #101923;border-radius:4px;padding:5px 9px;background:#fff;color:#101923;font:700 .74rem "Montserrat",sans-serif}
+.pv-chip[aria-pressed="true"]{background:#101923;color:#fff}
+.pv-chip:hover{background:#f3f1ea}
+.pv-chip[aria-pressed="true"]:hover{background:#101923}
+@media (max-width:1180px){.ed-body{grid-template-columns:240px minmax(0,1fr)}.ed-prev{display:none}}
+@media (max-width:760px){.ed-body{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr;overflow:auto}.ed-list{max-height:220px;border-right:0;border-bottom:1px solid var(--line)}.ed-color{grid-template-columns:minmax(0,1fr)}.ed-form{overflow:visible}}
 </style>
 </head>
 <body>
@@ -166,6 +205,7 @@ code.url{font-family:var(--f-mono);font-size:.82rem;background:var(--sunk);paddi
   <div class="wrap"><nav class="tabs" id="tabs" aria-label="Secciones"></nav></div>
 </header>
 <div class="wrap"><main id="main"><div class="empty">Cargando la tienda…</div></main></div>
+<div id="editor" class="ed" hidden></div>
 <div id="toast" class="toast" hidden></div>
 <div id="overlay" class="overlay" hidden></div>
 <script>
@@ -499,7 +539,7 @@ function vCatalogo(){
   const noImg=ps.filter(p=>!p.photo&&!p.image).length;
   const sold={};S.sales.forEach(s=>(s.items||[]).forEach(i=>sold[i.pid]=(sold[i.pid]||0)+i.qty));
   const zs={};ps.forEach(p=>{const k=p.season||NO_SEASON,z=zs[k]||(zs[k]={n:0,q:0,v:0,sold:0});z.n++;z.q+=Math.max(0,sm[p.id]||0);z.v+=Math.max(0,sm[p.id]||0)*num(p.cost);z.sold+=sold[p.id]||0});
-  return `<div class="row between"><div><div class="eyebrow">${ps.length} productos</div><h2>Catálogo e inventario</h2></div><div class="row"><button class="primary" data-act="new-prod">+ Producto</button></div></div>
+  return `<div class="row between"><div><div class="eyebrow">${ps.length} productos</div><h2>Catálogo e inventario</h2></div><div class="row"><button class="primary" data-act="open-editor">Abrir editor de prendas</button><button data-act="new-prod">+ Nuevo modelo</button></div></div>
   ${UI.editing?productForm():""}
   <div class="grid g2">${listCard("categories")}${listCard("seasons")}</div>
   <div class="kpis"><div class="kpi"><div class="eyebrow">Inventario a costo</div><div class="v">${money(inv)}</div></div><div class="kpi"><div class="eyebrow">Inventario a precio de venta</div><div class="v">${money(ret)}</div><div class="h">Ganancia potencial ${money(ret-inv)}</div></div><div class="kpi"><div class="eyebrow">Piezas en tienda</div><div class="v">${ps.reduce((x,p)=>x+Math.max(0,sm[p.id]||0),0)}</div></div></div>
@@ -728,6 +768,216 @@ function vConexiones(){
   </div>`;
 }
 
+/* ---------- editor de catálogo (ventana emergente) ---------- */
+// Un modelo = misma prenda y temporada; adentro tiene colores (cada uno con su foto) y tallas (cada una es una prenda con precio, costo y existencias).
+const ED={open:false,key:null,d:null,dirty:false,q:"",saving:false,ask:null,pc:0,ps:null,showArch:false};
+const SWATCH={negro:"#111",blanco:"#fff","azul marino":"#1d2a4d",azul:"#2d5aa0",gris:"#8a8f96","gris oxford":"#5c6168","gris oscuro":"#4a4e54","gris claro":"#c9ccd0",olivo:"#4d5a32",khaki:"#c8b08a",vino:"#6d1f2b","café":"#6b4a33",cafe:"#6b4a33",camel:"#b98a56",taupe:"#9a8b7a","carbón":"#3a3d42",rojo:"#b8322b"};
+const swatch=c=>SWATCH[String(c||"").toLowerCase().trim()]||"#ddd";
+const modelKey=p=>[p.name,p.season].map(s=>String(s||"").toLowerCase().trim()).join("|");
+const specsFrom=d=>String(d||"").split(" · ").filter(s=>s&&!/^Talla /.test(s));
+const measFrom=d=>(String(d||"").split(" · ").find(s=>/^Talla /.test(s))||"").replace(/^Talla [^:]+:\s*/,"");
+const SIZE_ORDER=["XS","CH","S","M","G","L","XL","XG","2XL","3XL","4XL","ÚNICA","UNICA"];
+const sizeRank=s=>{const i=SIZE_ORDER.indexOf(String(s).toUpperCase());return i<0?50+(parseFloat(s)||0):i};
+
+function edModels(){
+  const g=new Map(),sm=stockMap();
+  for(const p of S.products){
+    const k=modelKey(p);if(!g.has(k))g.set(k,{key:k,name:p.name,season:p.season,category:p.category,photo:null,min:Infinity,max:0,colors:new Set(),stock:0,active:false});
+    const m=g.get(k);m.colors.add(p.color||"");if(p.active!==false){m.active=true;m.stock+=Math.max(0,sm[p.id]||0);m.min=Math.min(m.min,num(p.price));m.max=Math.max(m.max,num(p.price))}
+    if(!m.photo&&p.photo)m.photo=photoUrl(p);
+  }
+  return [...g.values()].sort((a,b)=>(b.active-a.active)||a.name.localeCompare(b.name));
+}
+function edLoad(key){
+  const sm=stockMap(),used=new Set([...S.sales.flatMap(s=>(s.items||[]).map(i=>i.pid)),...S.purchases.map(x=>x.pid)]);
+  const rows=S.products.filter(p=>modelKey(p)===key);if(!rows.length)return null;
+  const f=rows.find(p=>p.active!==false)||rows[0],colors=[];
+  for(const p of rows){let c=colors.find(x=>x.color===(p.color||""));if(!c)colors.push(c={color:p.color||"",photo:"",photoId:null,newPhoto:null,removePhoto:false,rows:[]});
+    if(!c.photo&&p.photo){c.photo=photoUrl(p);c.photoId=p.id}
+    const st=sm[p.id]||0;c.rows.push({id:p.id,isNew:false,sku:p.sku||"",size:p.size||"",price:p.price,cost:p.cost,stock:st,origStock:st,meas:measFrom(p.desc),active:p.active!==false,used:used.has(p.id)})}
+  colors.forEach(c=>c.rows.sort((a,b)=>sizeRank(a.size)-sizeRank(b.size)));
+  return {key,isNew:false,name:f.name,category:f.category||"",season:f.season||"",specs:specsFrom(f.desc).join("\n"),colors};
+}
+function edBlank(){return {key:null,isNew:true,name:"",category:listOf("categories")[0]||"",season:listOf("seasons")[0]||"",specs:"",
+  colors:[{color:"",photo:"",photoId:null,newPhoto:null,removePhoto:false,rows:["S","M","L","XL"].map(s=>edRow(s))}]}}
+function edRow(size,base){return {id:uid(),isNew:true,sku:"",size,price:base?base.price:"",cost:base?base.cost:"",stock:0,origStock:0,meas:"",active:true,used:false}}
+
+function edOpen(key){ED.open=true;ED.ask=null;ED.pc=0;ED.ps=null;if(key===undefined){const first=edModels()[0];key=first?first.key:"new"}edSelect(key)}
+function edSelect(key){ED.key=key;ED.d=key==="new"?edBlank():edLoad(key);ED.dirty=false;ED.pc=0;ED.ps=null;edRender()}
+function edClose(force){if(ED.dirty&&!force){ED.ask={kind:"close"};edRender();return}ED.open=false;ED.d=null;edRender()}
+
+function edRender(){
+  const box=$("#editor");if(!ED.open){box.hidden=true;box.innerHTML="";document.body.style.overflow="";return}
+  box.hidden=false;document.body.style.overflow="hidden";
+  const q=ED.q.toLowerCase(),models=edModels().filter(m=>(ED.showArch||m.active)&&(!q||(m.name+" "+(m.category||"")).toLowerCase().includes(q)));
+  const archived=edModels().filter(m=>!m.active).length,d=ED.d;
+  box.innerHTML=`<div class="ed-top"><div style="display:flex;gap:12px;align-items:center;min-width:0">${logoSVG(32)}<div><div class="eyebrow">Catálogo</div><h2 style="font-size:1.2rem">Editor de prendas</h2></div></div>
+    <div class="row" style="flex-wrap:nowrap"><span id="ed-dirty" class="small ${ED.dirty?"":"muted"}" style="${ED.dirty?"color:var(--warn);font-weight:600":""}">${ED.dirty?"Cambios sin guardar":"Todo guardado"}</span>
+      <button class="primary" data-ed="save" ${ED.saving?"disabled":""}>${ED.saving?"Guardando…":"Guardar"}</button><button data-ed="close">Cerrar</button></div></div>
+  ${ED.ask?edAskHTML():""}
+  <div class="ed-body">
+    <div class="ed-list"><button class="primary" data-ed="new" style="justify-content:center">+ Nuevo modelo</button>
+      <input data-edq type="search" placeholder="Buscar modelo" value="${esc(ED.q)}" aria-label="Buscar modelo">
+      ${models.map(m=>`<button class="ed-item" data-ed="pick" data-k="${esc(m.key)}" ${ED.key===m.key?'aria-current="true"':""}>${m.photo?`<img src="${esc(m.photo)}" alt="" loading="lazy">`:`<span class="ed-noph">${mountainSVG(26,{fg:"#fff"})}</span>`}
+        <span style="min-width:0"><b>${esc(m.name)}</b><span class="small muted">${m.active?`${esc(m.category||"Sin categoría")} · ${m.colors.size} color${m.colors.size===1?"":"es"} · ${money(m.min)}${m.max>m.min?"–"+money(m.max):""}`:"Archivado"}</span></span></button>`).join("")}
+      ${!models.length?`<p class="small muted">${S.products.length?"Nada coincide.":"Aún no hay prendas. Crea tu primer modelo."}</p>`:""}
+      ${archived?`<button class="ghost tiny" data-ed="arch">${ED.showArch?"Ocultar archivados":"Ver archivados ("+archived+")"}</button>`:""}</div>
+    <div class="ed-form">${d?edFormHTML(d):`<div class="empty">Elige un modelo de la lista o crea uno nuevo.</div>`}</div>
+    <div class="ed-prev"><div class="eyebrow" style="margin-bottom:10px">Así se verá en la página web</div><div id="ed-prev"></div></div>
+  </div>`;
+  edPreview();
+}
+function edAskHTML(){
+  const a=ED.ask;
+  if(a.kind==="close")return `<div class="banner ed-ask">Tienes cambios sin guardar. <button class="tiny primary" data-ed="save-close">Guardar y cerrar</button> <button class="tiny danger" data-ed="discard-close">Salir sin guardar</button> <button class="tiny ghost" data-ed="ask-no">Seguir editando</button></div>`;
+  if(a.kind==="switch")return `<div class="banner ed-ask">Tienes cambios sin guardar en este modelo. <button class="tiny primary" data-ed="save-switch">Guardar y cambiar</button> <button class="tiny danger" data-ed="discard-switch">Descartar cambios</button> <button class="tiny ghost" data-ed="ask-no">Seguir editando</button></div>`;
+  if(a.kind==="error")return `<div class="banner ed-ask" style="background:var(--bad-soft);color:var(--bad)">${esc(a.msg)} <button class="tiny ghost" data-ed="ask-no">Entendido</button></div>`;
+  return "";
+}
+function edFormHTML(d){
+  const admin=isAdmin(),cats=listOf("categories"),seas=listOf("seasons");
+  const opt=(list,v)=>{const l=list.slice();if(v&&!l.includes(v))l.unshift(v);return `<option value="">—</option>`+l.map(o=>`<option ${o===v?"selected":""}>${esc(o)}</option>`).join("")};
+  return `<section class="card ed-sec"><div class="row between"><h3>${d.isNew?"Nuevo modelo":"Datos del modelo"}</h3>${d.isNew?"":`<span class="small muted">Lo que cambies aquí se aplica a todos sus colores y tallas</span>`}</div>
+    <div class="form"><label class="full">Nombre del modelo<input data-f="name" value="${esc(d.name)}" placeholder="Chamarra Casual Original Deluxe"></label>
+      <label>Categoría<select data-f="category">${opt(cats,d.category)}</select></label><label>Temporada<select data-f="season">${opt(seas,d.season)}</select></label>
+      <label class="full">Características (una por renglón; salen en la ficha de la página)<textarea data-f="specs" rows="4" style="font-family:var(--f-body);font-size:.9rem" placeholder="Tejido 190 g, 100% poliéster&#10;Forrada de lana&#10;Resistente al agua">${esc(d.specs)}</textarea></label></div>
+    <div class="row" style="align-items:end"><label style="width:150px">Precio para todo<input data-bulk="price" inputmode="decimal" placeholder="$"></label><label style="width:150px">Costo para todo<input data-bulk="cost" inputmode="decimal" placeholder="$"></label>
+      <button class="tiny" data-ed="bulk">Aplicar a todas las tallas</button></div></section>
+  ${d.colors.map((c,i)=>`<section class="card ed-sec"><div class="ed-color">
+      <div class="photo-drop" data-drop="${i}" title="Arrastra una foto aquí o haz clic para elegirla">${c.newPhoto||(!c.removePhoto&&c.photo)?`<img src="${esc(c.newPhoto||c.photo)}" alt="Foto del color ${esc(c.color)}">`:`<span class="small muted" style="text-align:center;padding:10px">Arrastra una foto aquí<br>o haz clic</span>`}
+        <input type="file" accept="image/*" data-photo="${i}" aria-label="Foto del color ${esc(c.color)}"></div>
+      <div style="display:grid;gap:10px;min-width:0;align-content:start">
+        <div class="row between"><label style="flex:1;min-width:160px">Color<span class="row" style="flex-wrap:nowrap"><i class="ed-sw" style="background:${swatch(c.color)}"></i><input data-f="c:${i}:color" value="${esc(c.color)}" placeholder="Negro"></span></label>
+          <div class="row">${c.newPhoto||(!c.removePhoto&&c.photo)?`<button class="tiny ghost" data-ed="rm-photo" data-k="${i}">Quitar foto</button>`:""}${d.colors.length>1&&c.rows.every(r=>r.isNew)?`<button class="tiny ghost danger" data-ed="rm-color" data-k="${i}">Quitar color</button>`:""}</div></div>
+        <div class="tbl"><table class="ed-tbl"><thead><tr><th>Talla</th><th class="r">Precio</th><th class="r">Costo</th><th class="r">Margen</th><th class="r">Existencias</th><th>Medidas</th><th>Código</th><th></th></tr></thead><tbody>
+          ${c.rows.map((r,j)=>{const m=num(r.price)?(num(r.price)-num(r.cost))/num(r.price):NaN;return `<tr class="${r.active?"":"ed-off"}">
+            <td><input data-f="r:${i}:${j}:size" value="${esc(r.size)}" style="width:64px" ${r.isNew?"":"title=\"Cambiar la talla de una prenda existente afecta su historial\""}></td>
+            <td><input data-f="r:${i}:${j}:price" value="${esc(r.price)}" inputmode="decimal" style="width:92px;text-align:right"></td>
+            <td><input data-f="r:${i}:${j}:cost" value="${esc(r.cost)}" inputmode="decimal" style="width:92px;text-align:right"></td>
+            <td class="r" data-margin="${i}:${j}">${pct(m)}</td>
+            <td><input data-f="r:${i}:${j}:stock" value="${esc(r.stock)}" inputmode="numeric" style="width:70px;text-align:right" title="${r.used?"Ya tiene ventas o compras: el cambio se guarda como ajuste de inventario":"Piezas que hay hoy"}"></td>
+            <td><input data-f="r:${i}:${j}:meas" value="${esc(r.meas)}" placeholder="largo 71 cm, pecho 122 cm" style="width:190px"></td>
+            <td><input data-f="r:${i}:${j}:sku" value="${esc(r.sku)}" style="width:130px" placeholder="opcional"></td>
+            <td>${r.isNew?`<button class="tiny ghost danger" data-ed="rm-row" data-k="${i}:${j}" aria-label="Quitar talla">✕</button>`:admin?`<button class="tiny ghost ${r.active?"danger":""}" data-ed="toggle-row" data-k="${i}:${j}">${r.active?"Archivar":"Restaurar"}</button>`:""}</td></tr>`}).join("")}
+        </tbody></table></div>
+        <div class="row"><input data-addsize="${i}" placeholder="Agregar tallas: 2XL, 3XL" style="max-width:240px"><button class="tiny" data-ed="add-size" data-k="${i}">Agregar</button>
+          <span class="small muted">${c.rows.some(r=>r.used)?"Las existencias de prendas con ventas se corrigen como ajuste de inventario.":""}</span></div>
+      </div></div></section>`).join("")}
+  <div class="row"><button data-ed="add-color">+ Agregar color</button>${d.isNew?"":`<span class="small muted">Para quitar un color completo, archiva sus tallas.</span>`}</div>`;
+}
+function edPreview(){
+  const el=$("#ed-prev");if(!el)return;const d=ED.d;
+  if(!d){el.innerHTML="";return}
+  const live=d.colors.map(c=>({...c,rows:c.rows.filter(r=>r.active&&num(r.stock)>0)})).filter(c=>c.rows.length);
+  const c=d.colors[Math.min(ED.pc,d.colors.length-1)]||d.colors[0],photo=c&&(c.newPhoto||(!c.removePhoto&&c.photo))||(d.colors.map(x=>x.newPhoto||(!x.removePhoto&&x.photo)).find(Boolean));
+  const prices=d.colors.flatMap(x=>x.rows.filter(r=>r.active).map(r=>num(r.price))).filter(Boolean),min=prices.length?Math.min(...prices):0;
+  const r=c&&c.rows.find(x=>x.id===ED.ps),specs=d.specs.split("\n").map(s=>s.trim()).filter(Boolean);
+  const ph=photo?`<img src="${esc(photo)}" alt="">`:`<span class="ed-noph" style="width:100%;height:100%">${mountainSVG(70,{fg:"#fff"})}</span>`;
+  el.innerHTML=`<div class="pv-card"><div class="pv-ph">${ph}${live.length&&live.reduce((a,x)=>a+x.rows.reduce((b,y)=>b+num(y.stock),0),0)<=2?'<span class="pv-flag">Últimas piezas</span>':""}</div>
+      <div class="pv-info"><b>${esc(d.name||"Nombre del modelo")}</b><span class="small muted">${d.colors.length>1?d.colors.length+" colores":esc(d.colors[0].color||"")}</span><span class="pv-price">${money(min)}</span>
+      ${d.colors.length>1?`<span class="row" style="gap:6px">${d.colors.map(x=>`<i class="ed-sw" style="width:12px;height:12px;background:${swatch(x.color)}"></i>`).join("")}</span>`:""}</div></div>
+    ${!live.length?`<div class="banner" style="margin-top:10px">Sin existencias: este modelo no saldrá en la página hasta que tenga piezas.</div>`:""}
+    <div class="eyebrow" style="margin:18px 0 8px">Ficha del producto</div>
+    <div class="pv-sheet"><div class="pv-ph">${ph}</div><div class="small" style="color:var(--thread);font-weight:700;letter-spacing:.12em;text-transform:uppercase">${esc(d.season||"")}</div>
+      <b style="font:700 1.05rem var(--f-display)">${esc(d.name||"Nombre del modelo")}</b><span class="pv-price">${money(r?num(r.price):min)}</span>
+      ${d.colors.length>1||c.color?`<div class="row" style="gap:6px">${d.colors.map((x,i)=>`<button class="pv-chip" data-ed="pv-color" data-k="${i}" aria-pressed="${x===c}"><i class="ed-sw" style="width:10px;height:10px;background:${swatch(x.color)}"></i>${esc(x.color||"Color")}</button>`).join("")}</div>`:""}
+      <div class="row" style="gap:6px">${c.rows.filter(x=>x.active).map(x=>`<button class="pv-chip" data-ed="pv-size" data-k="${esc(x.id)}" aria-pressed="${x.id===ED.ps}" ${num(x.stock)>0?"":"disabled"}>${esc(x.size||"?")}</button>`).join("")}</div>
+      ${r&&r.meas?`<span class="small muted">Medidas talla ${esc(r.size)}: ${esc(r.meas)}</span>`:""}
+      ${specs.length?`<ul class="small" style="margin:4px 0 0;padding-left:18px">${specs.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`:""}</div>
+    <p class="small muted" style="margin-top:12px">Los cambios llegan a la página cuando los guardas y luego publicas en Conexiones.</p>`;
+}
+function edMark(){if(!ED.dirty){ED.dirty=true;const e=$("#ed-dirty");if(e){e.textContent="Cambios sin guardar";e.className="small";e.style.cssText="color:var(--warn);font-weight:600"}}}
+function edSet(path,val){
+  const d=ED.d,p=path.split(":");
+  if(p[0]==="c")d.colors[+p[1]].color=val;
+  else if(p[0]==="r")d.colors[+p[1]].rows[+p[2]][p[3]]=val;
+  else d[path]=val;
+  edMark();
+  if(p[0]==="r"&&(p[3]==="price"||p[3]==="cost")){const r=d.colors[+p[1]].rows[+p[2]],m=num(r.price)?(num(r.price)-num(r.cost))/num(r.price):NaN,e=document.querySelector(`[data-margin="${p[1]}:${p[2]}"]`);if(e)e.textContent=pct(m)}
+  if(p[0]==="c"){const sw=document.querySelector(`[data-f="${path}"]`)?.previousElementSibling;if(sw)sw.style.background=swatch(val)}
+  edPreview();
+}
+async function edPhoto(i,file){
+  if(!file||!/^image\//.test(file.type)){toast("Elige una imagen (JPG, PNG o WEBP)");return}
+  try{ED.d.colors[i].newPhoto=await resizeImage(file,1400,.86);ED.d.colors[i].removePhoto=false;edMark();edRender()}catch(e){toast(e.message)}
+}
+function edValidate(d){
+  if(!d.name.trim())return "Escribe el nombre del modelo";
+  const seen=new Set();
+  for(const c of d.colors){
+    if(d.colors.length>1&&!c.color.trim())return "Cada color necesita nombre";
+    for(const r of c.rows){if(!r.active)continue;
+      if(!String(r.size).trim())return `Falta la talla en el color ${c.color||"sin nombre"}`;
+      const k=(c.color+"|"+r.size).toLowerCase();if(seen.has(k))return `La talla ${r.size} está repetida en ${c.color||"el mismo color"}`;seen.add(k);
+      if(!(num(r.price)>0))return `Falta el precio de la talla ${r.size}${c.color?" en "+c.color:""}`;
+      if(!Number.isInteger(+num(r.stock))||num(r.stock)<0)return `Las existencias de la talla ${r.size} deben ser un número entero`}}
+  return null;
+}
+async function edSave(after){
+  const d=ED.d;if(!d||ED.saving)return;
+  const err=edValidate(d);if(err){ED.ask={kind:"error",msg:err};edRender();return}
+  const specs=d.specs.split("\n").map(s=>s.trim()).filter(Boolean),products=[],photos=[];
+  for(const c of d.colors){
+    const ids=[],newIds=[];
+    for(const r of c.rows){
+      const desc=[...specs,r.meas.trim()?`Talla ${r.size}: ${r.meas.trim()}`:""].filter(Boolean).join(" · ");
+      const id=r.isNew&&r.sku.trim()&&/^[A-Za-z0-9_-]+$/.test(r.sku.trim())&&!S.products.some(p=>p.id===r.sku.trim())?r.sku.trim():r.id;r.id=id;
+      const body={id,name:d.name.trim(),sku:r.sku.trim(),category:d.category,season:d.season,size:String(r.size).trim(),color:c.color.trim(),price:num(r.price),cost:num(r.cost),desc,active:r.active};
+      if(r.isNew)body.stock0=Math.round(num(r.stock));else if(num(r.stock)!==r.origStock)body.stock=Math.round(num(r.stock));
+      products.push(body);ids.push(id);if(r.isNew)newIds.push(id);
+    }
+    if(c.newPhoto)photos.push({ids,data:c.newPhoto});
+    else if(c.removePhoto)photos.push({ids,remove:true});
+    else if(c.photoId&&newIds.length)photos.push({ids:newIds,from:c.photoId});
+  }
+  ED.saving=true;edRender();
+  try{
+    await api("POST","/api/catalogo/guardar",{products,photos});
+    if(isAdmin()){for(const [kind,v] of [["categories",d.category],["seasons",d.season]])if(v&&!listOf(kind).includes(v))await api("POST","/api/listas",{kind,action:"add",name:v}).catch(()=>{})}
+    await load();ED.saving=false;ED.dirty=false;toast("Guardado. Publica la página web en Conexiones para que se vea en línea.");
+    const key=modelKey({name:d.name.trim(),season:d.season});
+    if(after==="close"){ED.open=false;edRender()}else if(after&&after.switchTo!==undefined)edSelect(after.switchTo);else edSelect(key);
+  }catch(e){ED.saving=false;ED.ask={kind:"error",msg:e.message};edRender()}
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-ed]");if(!b||!b.closest("#editor"))return;
+  const a=b.dataset.ed,k=b.dataset.k,d=ED.d;
+  switch(a){
+    case "close":edClose();break;
+    case "save":edSave();break;
+    case "save-close":ED.ask=null;edSave("close");break;
+    case "discard-close":ED.ask=null;edClose(true);break;
+    case "ask-no":ED.ask=null;edRender();break;
+    case "pick":case "new":{const key=a==="new"?"new":k;if(key===ED.key)break;if(ED.dirty){ED.ask={kind:"switch",to:key};edRender();break}edSelect(key);break}
+    case "save-switch":{const to=ED.ask.to;ED.ask=null;edSave({switchTo:to});break}
+    case "discard-switch":{const to=ED.ask.to;ED.ask=null;edSelect(to);break}
+    case "arch":ED.showArch=!ED.showArch;edRender();break;
+    case "bulk":{const pr=document.querySelector('[data-bulk="price"]').value,co=document.querySelector('[data-bulk="cost"]').value;if(!pr&&!co){toast("Escribe un precio o un costo");break}
+      d.colors.forEach(c=>c.rows.forEach(r=>{if(pr)r.price=num(pr);if(co)r.cost=num(co)}));edMark();edRender();break}
+    case "add-color":{const base=d.colors[d.colors.length-1];d.colors.push({color:"",photo:"",photoId:null,newPhoto:null,removePhoto:false,rows:(base?base.rows.filter(r=>r.active).map(r=>r.size):["S","M","L","XL"]).map(s=>edRow(s,base&&base.rows[0]))});ED.pc=d.colors.length-1;edMark();edRender();break}
+    case "rm-color":d.colors.splice(+k,1);ED.pc=0;edMark();edRender();break;
+    case "rm-photo":{const c=d.colors[+k];c.newPhoto=null;c.removePhoto=!!c.photo;edMark();edRender();break}
+    case "add-size":{const c=d.colors[+k],inp=document.querySelector(`[data-addsize="${k}"]`),sizes=inp.value.split(/[,\s]+/).map(s=>s.trim()).filter(Boolean);
+      if(!sizes.length){toast("Escribe las tallas separadas por coma");break}
+      sizes.forEach(s=>{if(!c.rows.some(r=>r.size.toLowerCase()===s.toLowerCase()))c.rows.push(edRow(s,c.rows[0]))});c.rows.sort((a,b)=>sizeRank(a.size)-sizeRank(b.size));edMark();edRender();break}
+    case "rm-row":{const [i,j]=k.split(":").map(Number);d.colors[i].rows.splice(j,1);edMark();edRender();break}
+    case "toggle-row":{const [i,j]=k.split(":").map(Number),r=d.colors[i].rows[j];r.active=!r.active;edMark();edRender();break}
+    case "pv-color":ED.pc=+k;ED.ps=null;edPreview();break;
+    case "pv-size":ED.ps=k;edPreview();break;
+  }
+});
+document.addEventListener("input",e=>{
+  const t=e.target;if(!t.closest||!t.closest("#editor"))return;
+  if(t.dataset.f)edSet(t.dataset.f,t.value);
+  else if(t.hasAttribute("data-edq")){ED.q=t.value;const pos=t.selectionStart;edRender();const n=document.querySelector("[data-edq]");if(n){n.focus();n.setSelectionRange(pos,pos)}}
+});
+document.addEventListener("change",e=>{const t=e.target;if(t.dataset&&t.dataset.photo!==undefined&&t.closest("#editor"))edPhoto(+t.dataset.photo,t.files[0])});
+document.addEventListener("dragover",e=>{const z=e.target.closest&&e.target.closest("[data-drop]");if(z){e.preventDefault();z.classList.add("over")}});
+document.addEventListener("dragleave",e=>{const z=e.target.closest&&e.target.closest("[data-drop]");if(z)z.classList.remove("over")});
+document.addEventListener("drop",e=>{const z=e.target.closest&&e.target.closest("[data-drop]");if(!z)return;e.preventDefault();z.classList.remove("over");edPhoto(+z.dataset.drop,e.dataTransfer.files[0])});
+document.addEventListener("keydown",e=>{if(!ED.open)return;if(e.key==="Escape"&&!ED.ask)edClose();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();edSave()}});
+window.addEventListener("beforeunload",e=>{if(ED.open&&ED.dirty){e.preventDefault();e.returnValue=""}});
+
 /* ---------- actions ---------- */
 // Promoción de primera compra: la caja la calcula para mostrarla y el servidor la vuelve a validar al guardar.
 const phoneKey=p=>{let d=String(p||"").replace(/\D/g,"");if(d.length===13&&d.startsWith("521"))d=d.slice(3);else if(d.length===12&&d.startsWith("52"))d=d.slice(2);return d};
@@ -773,8 +1023,9 @@ document.addEventListener("click",async e=>{
     case "send-ticket":{const ph=$("#tk-phone").value;if(phoneDigits(ph).length<11){toast("Escribe el WhatsApp del cliente");break}
       const l=document.createElement("a");l.href=waLink(ph,ticketText(UI.lastSale));l.target="_blank";l.rel="noopener";l.click();break}
     case "copy-ticket":copy(ticketText(UI.lastSale));break;
-    case "new-prod":UI.editing="new";render();break;
-    case "edit-prod":UI.editing=k;render();scrollTo(0,0);break;
+    case "new-prod":edOpen("new");break;
+    case "open-editor":edOpen();break;
+    case "edit-prod":{const p=S.products.find(x=>x.id===k);edOpen(p?modelKey(p):undefined);break}
     case "cancel-edit":UI.editing=null;render();break;
     case "ask":UI.confirm=k;render();break;
     case "no":UI.confirm=null;render();break;

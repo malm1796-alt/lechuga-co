@@ -10,7 +10,7 @@ const { db, ROOT, getSettings, saveSettings, checkPassword, hashPassword, create
 const PORT = Number(process.env.PORT || 8787);
 const DOCS = path.join(ROOT, "docs");
 const SESSION_DAYS = 30;
-const MAX_BODY = 8 * 1024 * 1024;
+const MAX_BODY = 40 * 1024 * 1024; // el editor manda varias fotos juntas
 let version = Date.now();
 const bump = () => { version = Date.now(); };
 // Si otro programa (el importador) cambia la base de datos, la caja también debe enterarse.
@@ -161,6 +161,59 @@ function insertPurchase(id, b, user) {
   db.prepare(`INSERT INTO purchases(id, type, ts, product_id, qty, unit_cost, total, supplier, method, reason, user_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
     .run(id, type, num(b.ts) || Date.now(), str(b.pid, 64), qty, unit, qty * unit, str(b.supplier, 120), str(b.method, 30), str(b.reason, 200), user.id);
   if (type === "compra" && unit > 0) db.prepare("UPDATE products SET cost = ? WHERE id = ?").run(unit, str(b.pid, 64));
+}
+
+/* ---------- editor de catálogo: guarda un modelo completo de una vez ---------- */
+const movements = id => db.prepare("SELECT (SELECT COUNT(*) FROM sale_items WHERE product_id = ?) + (SELECT COUNT(*) FROM purchases WHERE product_id = ?) n").get(id, id).n;
+function stockOf(id) {
+  const p = db.prepare("SELECT stock0 FROM products WHERE id = ?").get(id);
+  if (!p) return 0;
+  const inn = db.prepare("SELECT COALESCE(SUM(qty), 0) q FROM purchases WHERE product_id = ?").get(id).q;
+  const out = db.prepare("SELECT COALESCE(SUM(qty), 0) q FROM sale_items WHERE product_id = ?").get(id).q;
+  return p.stock0 + inn - out;
+}
+function saveCatalog(b, user) {
+  const admin = user.role === "admin";
+  const prods = Array.isArray(b.products) ? b.products.slice(0, 600) : [];
+  const photos = Array.isArray(b.photos) ? b.photos.slice(0, 60) : [];
+  db.exec("BEGIN");
+  try {
+    for (const x of prods) {
+      const id = str(x.id, 64);
+      if (!idOk(id)) throw new Error(`El código «${id}» no es válido: usa letras, números y guiones`);
+      const old = db.prepare("SELECT active FROM products WHERE id = ?").get(id);
+      if ((x.active === false && (!old || old.active)) || (old && !old.active && x.active !== false))
+        if (!admin) throw new Error("Solo el administrador puede archivar o restaurar prendas");
+      upsertProduct(id, x);
+      if (!old || x.stock === undefined) continue;
+      // Existencias: si la prenda nunca se ha movido se corrige la carga inicial; si ya tiene ventas o compras, queda como ajuste.
+      const diff = Math.round(num(x.stock)) - stockOf(id);
+      if (!diff) continue;
+      if (!movements(id)) db.prepare("UPDATE products SET stock0 = stock0 + ? WHERE id = ?").run(diff, id);
+      else {
+        const cost = num(x.cost);
+        db.prepare(`INSERT INTO purchases(id, type, ts, product_id, qty, unit_cost, total, reason, user_id) VALUES (?, 'ajuste', ?, ?, ?, ?, ?, 'Ajuste desde el editor de catálogo', ?)`)
+          .run(crypto.randomBytes(8).toString("hex"), Date.now(), id, diff, cost, diff * cost, user.id);
+      }
+    }
+    // Mientras una prenda no tenga movimientos, su costo inicial sigue al costo actual (lo usa el balance).
+    for (const x of prods) if (!movements(str(x.id, 64))) db.prepare("UPDATE products SET cost0 = cost WHERE id = ?").run(str(x.id, 64));
+    const put = db.prepare(`INSERT INTO photos(product_id, jpeg, mime, updated_at) VALUES (?,?,?,?)
+      ON CONFLICT(product_id) DO UPDATE SET jpeg = excluded.jpeg, mime = excluded.mime, updated_at = excluded.updated_at`);
+    for (const ph of photos) {
+      const ids = (Array.isArray(ph.ids) ? ph.ids : []).map(i => str(i, 64)).filter(idOk);
+      if (ph.remove) { for (const id of ids) db.prepare("DELETE FROM photos WHERE product_id = ?").run(id); continue; }
+      let blob, mime;
+      if (ph.from) { const src = db.prepare("SELECT jpeg, mime FROM photos WHERE product_id = ?").get(str(ph.from, 64)); if (!src) continue; blob = src.jpeg; mime = src.mime; }
+      else {
+        const mm = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(ph.data || ""));
+        if (!mm) throw new Error("La foto debe ser JPG, PNG o WEBP");
+        blob = Buffer.from(mm[2], "base64"); mime = mm[1];
+      }
+      for (const id of ids) put.run(id, blob, mime, Date.now());
+    }
+    db.exec("COMMIT");
+  } catch (e) { db.exec("ROLLBACK"); throw e; }
 }
 
 /* ---------- publicar la tienda en GitHub ---------- */
@@ -362,6 +415,7 @@ async function route(req, res) {
     bump(); return send(res, 200, { ok: true });
   }
   if (m === "GET" && p === "/api/promo") return send(res, 200, promoCheck(url.searchParams.get("tel"), num(url.searchParams.get("subtotal"))));
+  if (m === "POST" && p === "/api/catalogo/guardar") { saveCatalog(b, user); bump(); return send(res, 200, { ok: true }); }
   if (p === "/api/clientes" && m === "POST") {
     const name = str(b.name, 80), phone = phoneKey(b.phone), email = str(b.email, 120).toLowerCase();
     if (name.length < 2 || phone.length !== 10) return fail(res, 400, "Escribe nombre y WhatsApp a 10 dígitos");
