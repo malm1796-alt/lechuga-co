@@ -137,6 +137,7 @@ async function plan({ days = 7, perWeek = 6, networks = ["facebook", "instagram"
   const st = getSettings(), c = cfg(), cat = catalogForAgent();
   if (!cat.length) throw new Error("No hay prendas con existencias para anunciar. Carga tu catálogo primero.");
   const rep = db.prepare("SELECT report FROM ad_research ORDER BY id DESC LIMIT 1").get();
+  const sl = st.sale && st.sale.active && (!st.sale.end || new Date().toISOString().slice(0, 10) <= st.sale.end) ? `Descuento general: ${st.sale.title}, ${st.sale.percent}% en toda la tienda para todos los clientes del ${st.sale.start} al ${st.sale.end}${st.sale.minimum ? ", compra mínima $" + st.sale.minimum : ""}. Anúncialo con fuerza en los días previos y durante esas fechas; no lo anuncies después. No uses logotipos de programas oficiales.` : "";
   const pr = st.promo && st.promo.active ? `Promoción activa: ${st.promo.title}, ${st.promo.percent}% en la primera compra de clientes registrados en la página, compra mínima $${st.promo.minimum}${st.promo.end ? ", válida hasta " + st.promo.end : ""}.` : "Sin promoción activa: no menciones descuentos.";
   const text = await ask({
     max_tokens: 32000,
@@ -146,6 +147,7 @@ async function plan({ days = 7, perWeek = 6, networks = ["facebook", "instagram"
 
 Redes disponibles: ${networks.join(", ")}. Horarios sugeridos: ${c.times.join(", ")}. Máximo ${c.dailyMax} por día.
 ${pr}
+${sl}
 Página web: ${st.storeUrl || "(sin dirección)"} · WhatsApp: ${st.phone || "(sin número)"}
 
 Catálogo disponible (usa SOLO estos ids en product_ids; prefiere los que tienen foto):

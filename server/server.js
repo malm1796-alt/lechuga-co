@@ -95,6 +95,14 @@ function state(user) {
 
 /* ---------- promoción de primera compra para clientes registrados ---------- */
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+function saleCheck(subtotal) {
+  const s = getSettings().sale || {}, d = today();
+  if (!s.active) return { ok: false, reason: "No hay descuento general activo" };
+  if ((s.start && d < s.start) || (s.end && d > s.end)) return { ok: false, reason: `${s.title || "El descuento"} es del ${s.start} al ${s.end}` };
+  if (subtotal < num(s.minimum)) return { ok: false, reason: `La compra mínima es de $${num(s.minimum).toLocaleString("es-MX")}` };
+  const pct = Math.max(0, Math.min(80, num(s.percent)));
+  return { ok: true, title: s.title, percent: pct, discount: Math.round(subtotal * pct) / 100 };
+}
 function promoCheck(phone, subtotal) {
   const pr = getSettings().promo || {}, key = phoneKey(phone);
   if (!pr.active) return { ok: false, reason: "La promoción no está activa" };
@@ -131,6 +139,12 @@ function insertSale(id, b, user) {
   if (!items.length) throw new Error("La venta no tiene productos");
   const subtotal = items.reduce((a, i) => a + num(i.qty) * num(i.price), 0);
   let total = Math.max(0, Math.min(subtotal, num(b.total))), promo = "";
+  if (b.promo === "general") {
+    const sc = saleCheck(subtotal);
+    if (!sc.ok) throw new Error(sc.reason);
+    total = Math.min(total, Math.round((subtotal - sc.discount) * 100) / 100);
+    promo = "general";
+  }
   if (b.promo === "primera") {
     const pc = promoCheck(b.phone, subtotal);
     if (!pc.ok) throw new Error(pc.reason);
@@ -250,7 +264,8 @@ async function publishStore() {
   const pr = st.promo || {};
   const catalog = { publishedAt: Date.now(),
     settings: { name: st.name, tagline: st.tagline, phone: st.phone, currency: st.currency, city: st.city, categories: st.categories, seasons: st.seasons,
-      promo: pr.active ? { title: pr.title, percent: pr.percent, minimum: pr.minimum, end: pr.end } : null },
+      promo: pr.active ? { title: pr.title, percent: pr.percent, minimum: pr.minimum, end: pr.end } : null,
+      sale: st.sale && st.sale.active ? { title: st.sale.title, percent: st.sale.percent, minimum: st.sale.minimum, start: st.sale.start, end: st.sale.end } : null },
     items };
   fs.writeFileSync(path.join(DOCS, "catalogo.json"), JSON.stringify(catalog, null, 1));
   if (!fs.existsSync(path.join(ROOT, ".git"))) return { ok: true, pushed: false, message: "Catálogo generado. Falta conectar la carpeta con GitHub para subirlo." };
@@ -272,7 +287,7 @@ const BI = {
   ventas: () => db.prepare("SELECT s.*, u.name vendedor FROM sales s LEFT JOIN users u ON u.id = s.user_id ORDER BY ts").all().map(s => ({
     venta_id: s.id, fecha: fecha(s.ts), hora: hora(s.ts), subtotal: s.subtotal, descuento: s.subtotal - s.total, total: s.total,
     forma_pago: s.method, canal: s.channel, cliente: s.customer || "", vendedor: s.vendedor || "",
-    promocion: s.promo === "primera" ? "Primera compra" : "", ejemplo: !!s.example })),
+    promocion: s.promo === "primera" ? "Primera compra" : s.promo === "general" ? "Descuento general" : "", ejemplo: !!s.example })),
   clientes: () => db.prepare("SELECT * FROM customers ORDER BY created_at").all().map(c => ({
     cliente_id: c.id, nombre: c.name, origen: c.source === "web" ? "Página web" : "Caja", fecha_registro: fecha(c.created_at) })),
   partidas: () => db.prepare(`SELECT i.*, s.ts, s.subtotal, s.total, p.category, p.season, p.color FROM sale_items i
@@ -428,7 +443,9 @@ async function route(req, res) {
       openingCash: num(b.openingCash), fixedAssets: num(b.fixedAssets), liabilities: num(b.liabilities), storeUrl: str(b.storeUrl, 300),
       city: str(b.city, 80) || cur.city,
       promo: b.promo ? { active: !!b.promo.active, title: str(b.promo.title, 60) || "Compra anticipada", percent: Math.max(0, Math.min(80, num(b.promo.percent))),
-        minimum: Math.max(0, num(b.promo.minimum)), end: /^\d{4}-\d{2}-\d{2}$/.test(b.promo.end || "") ? b.promo.end : "" } : cur.promo });
+        minimum: Math.max(0, num(b.promo.minimum)), end: /^\d{4}-\d{2}-\d{2}$/.test(b.promo.end || "") ? b.promo.end : "" } : cur.promo,
+      sale: b.sale ? { active: !!b.sale.active, title: str(b.sale.title, 60) || "Descuento", percent: Math.max(0, Math.min(80, num(b.sale.percent))), minimum: Math.max(0, num(b.sale.minimum)),
+        start: /^\d{4}-\d{2}-\d{2}$/.test(b.sale.start || "") ? b.sale.start : "", end: /^\d{4}-\d{2}-\d{2}$/.test(b.sale.end || "") ? b.sale.end : "" } : cur.sale });
     bump(); return send(res, 200, { ok: true });
   }
   if (m === "GET" && p === "/api/promo") return send(res, 200, promoCheck(url.searchParams.get("tel"), num(url.searchParams.get("subtotal"))));

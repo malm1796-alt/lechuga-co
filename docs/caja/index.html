@@ -449,7 +449,7 @@ function catalogCSV(){
 function ticketText(s){
   const st=S.settings;let t=`*${st.name}*\nTicket ${folio(s.ts)} · ${fdate(s.ts,{day:"2-digit",month:"2-digit",year:"numeric"})} ${ftime(s.ts)}\n\n`;
   (s.items||[]).forEach(i=>t+=`${i.qty} x ${i.name}${i.size?" ("+i.size+")":""}  ${money(i.qty*i.price)}\n`);
-  if(s.subtotal>s.total)t+=`\nSubtotal: ${money(s.subtotal)}\n${s.promo==="primera"?"Descuento (primera compra)":"Descuento"}: -${money(s.subtotal-s.total)}`;
+  if(s.subtotal>s.total)t+=`\nSubtotal: ${money(s.subtotal)}\n${s.promo==="primera"?"Descuento (primera compra)":s.promo==="general"?`Descuento ${(S.settings.sale||{}).title||""}`.trim():"Descuento"}: -${money(s.subtotal-s.total)}`;
   t+=`\n*Total: ${money(s.total)}*\nPago: ${s.method}\n\n¡Gracias por tu compra${s.customer?", "+s.customer:""}! 🧥`;
   return t;
 }
@@ -568,7 +568,7 @@ function vVender(){
   const all=colorGroups(activeProducts()),q=UI.q.toLowerCase().trim();
   const list=all.filter(g=>(!UI.cat||g.category===UI.cat)&&(!UI.season||(g.season||NO_SEASON)===UI.season)&&(!q||[g.name,g.color,g.category,g.season,...g.rows.map(r=>r.sku+" "+r.size)].join(" ").toLowerCase().includes(q)));
   const cats=[...new Set(all.map(g=>g.category).filter(Boolean))],seas=[...new Set(all.map(g=>g.season||NO_SEASON))];
-  const {sub,disc,promo,promoDisc,tot}=cartTotals(),units=UI.cart.reduce((a,i)=>a+i.qty,0),method=UI.method||"Efectivo",cash=num(UI.cash),pick=UI.pick&&all.find(g=>g.key===UI.pick);
+  const {sub,disc,promo,promoDisc,sale,saleDisc,tot}=cartTotals(),units=UI.cart.reduce((a,i)=>a+i.qty,0),method=UI.method||"Efectivo",cash=num(UI.cash),pick=UI.pick&&all.find(g=>g.key===UI.pick);
   return `<div class="pos">
   <div style="display:grid;gap:12px;min-width:0;align-content:start">
     <div class="row between"><div><div class="eyebrow">${list.length} modelo${list.length===1?"":"s"} · ${list.reduce((a,g)=>a+g.stock,0)} piezas</div><h2>Punto de venta</h2></div><span class="small muted">Tecla <b>/</b> para buscar</span></div>
@@ -597,10 +597,11 @@ function vVender(){
     <div class="seg small" role="group" aria-label="Canal">${["Tienda","WhatsApp"].map(c=>`<button data-act="channel" data-k="${c}" aria-pressed="${(UI.channel||"Tienda")===c}">${c==="WhatsApp"?"Pedido por WhatsApp":"En tienda"}</button>`).join("")}</div>
     <label>WhatsApp del cliente (opcional)<input id="pos-phone" inputmode="tel" placeholder="10 dígitos · para su descuento y su ticket" value="${esc(UI.phone||"")}" data-fresh="1"></label>
     ${promo&&promo.c?"":`<label>Cliente (opcional)<input id="pos-cust" placeholder="Nombre"></label>`}
-    ${promo?promo.ok?`<label class="banner" style="background:var(--good-soft);color:var(--good);display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" id="pos-promo" style="width:auto" ${UI.usePromo!==false?"checked":""} data-fresh="1"> ${esc(promo.msg)} (−${money(promo.disc)})</label>`
+    ${saleDisc?`<div class="banner" style="background:var(--good-soft);color:var(--good);font-weight:600">${esc(sale.title)}: ${sale.pct}% de descuento aplicado (−${money(saleDisc)})${promo&&promo.ok?" · No se acumula con su descuento de primera compra; ese lo conserva para otra visita.":""}</div>`:""}
+    ${promo&&!(saleDisc&&promo.ok)?promo.ok?`<label class="banner" style="background:var(--good-soft);color:var(--good);display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" id="pos-promo" style="width:auto" ${UI.usePromo!==false?"checked":""} data-fresh="1"> ${esc(promo.msg)} (−${money(promo.disc)})</label>`
       :`<div class="banner" style="background:var(--sunk);color:var(--muted)">${esc(promo.msg)}</div>`:""}
     ${UI.showDisc||disc?`<label>Descuento ($)<input id="pos-desc" inputmode="decimal" value="${esc(UI.discount||"")}" placeholder="0" data-fresh="1"></label>`:UI.cart.length?`<button class="ghost tiny" data-act="show-disc" style="justify-self:start">+ Agregar descuento</button>`:""}
-    ${disc||promoDisc?`<div class="row between small"><span>Subtotal</span><span class="num">${money(sub)}</span></div>${disc?`<div class="row between small"><span>Descuento</span><span class="num neg-v">-${money(disc)}</span></div>`:""}${promoDisc?`<div class="row between small"><span>Primera compra (${promo.pct}%)</span><span class="num neg-v">-${money(promoDisc)}</span></div>`:""}`:""}
+    ${disc||promoDisc||saleDisc?`<div class="row between small"><span>Subtotal</span><span class="num">${money(sub)}</span></div>${disc?`<div class="row between small"><span>Descuento</span><span class="num neg-v">-${money(disc)}</span></div>`:""}${promoDisc?`<div class="row between small"><span>Primera compra (${promo.pct}%)</span><span class="num neg-v">-${money(promoDisc)}</span></div>`:""}${saleDisc?`<div class="row between small"><span>${esc(sale.title)} (${sale.pct}%)</span><span class="num neg-v">-${money(saleDisc)}</span></div>`:""}`:""}
     <div class="total"><span>Total</span><span>${money(tot)}</span></div>
     <button class="primary paybtn" data-act="checkout" ${UI.cart.length&&!(method==="Efectivo"&&cash&&cash<tot)?"":"disabled"}>Cobrar ${money(tot)}</button>
   </aside></div>`;
@@ -822,6 +823,13 @@ function vAjustes(){
     <label>Descuento (%)<input id="s-pr-pct" inputmode="decimal" value="${esc((st.promo||{}).percent??"")}"></label>
     <label>Compra mínima ($)<input id="s-pr-min" inputmode="decimal" value="${esc((st.promo||{}).minimum??"")}"></label>
     <label>Válida hasta<input id="s-pr-end" type="date" value="${esc((st.promo||{}).end||"")}"></label>
+    <p class="full small muted" style="margin:0"><b>Descuento para todos</b> (por ejemplo Buen Fin): se aplica solo en la caja y en la página durante esas fechas. No se acumula con el de primera compra: se usa el mayor.</p>
+    <label style="display:flex;gap:8px;align-items:center;align-self:end"><input id="s-sl-on" type="checkbox" style="width:auto" ${(st.sale||{}).active?"checked":""}> Descuento activo</label>
+    <label>Nombre<input id="s-sl-title" value="${esc((st.sale||{}).title||"")}" placeholder="Buen Fin"></label>
+    <label>Descuento (%)<input id="s-sl-pct" inputmode="decimal" value="${esc((st.sale||{}).percent??"")}"></label>
+    <label>Compra mínima ($, 0 = sin mínimo)<input id="s-sl-min" inputmode="decimal" value="${esc((st.sale||{}).minimum??0)}"></label>
+    <label>Desde<input id="s-sl-start" type="date" value="${esc((st.sale||{}).start||"")}"></label>
+    <label>Hasta<input id="s-sl-end" type="date" value="${esc((st.sale||{}).end||"")}"></label>
     <div style="align-self:end"><button class="primary" type="submit">Guardar ajustes</button></div>
   </form>
   <div class="card" style="display:grid;gap:12px"><div class="row between"><h3>Usuarios</h3><span class="small muted">Tú decides quién entra a la caja</span></div>
@@ -1366,16 +1374,25 @@ function promoFor(phone,sub){
   if(sub<num(pr.minimum))return {ok:false,c,msg:`${c.name} tiene ${pr.percent}% en su primera compra desde ${money(pr.minimum)}. Le faltan ${money(pr.minimum-sub)}.`};
   return {ok:true,c,pct:num(pr.percent),disc:Math.round(sub*num(pr.percent))/100,msg:`Primera compra de ${c.name}: ${pr.percent}% de descuento`};
 }
+// Descuento para todos en unas fechas (Buen Fin). El servidor lo vuelve a revisar al guardar la venta.
+function saleFor(sub){
+  const s=S.settings.sale||{},d=dayKey(Date.now());
+  if(!s.active||(s.start&&d<s.start)||(s.end&&d>s.end)||sub<num(s.minimum)||!(num(s.percent)>0))return null;
+  return {ok:true,title:s.title||"Descuento",pct:num(s.percent),disc:Math.round(sub*num(s.percent))/100};
+}
+// Los descuentos de promoción no se acumulan: se aplica el mayor.
 function cartTotals(){
   const sub=UI.cart.reduce((x,i)=>x+i.qty*i.price,0),disc=Math.min(sub,Math.max(0,num(UI.discount)));
-  const promo=UI.cart.length?promoFor(UI.phone,sub):null,promoDisc=promo&&promo.ok&&UI.usePromo!==false?promo.disc:0;
-  return {sub,disc,promo,promoDisc,tot:Math.max(0,Math.round((sub-disc-promoDisc)*100)/100)};
+  const promo=UI.cart.length?promoFor(UI.phone,sub):null,sale=UI.cart.length?saleFor(sub):null;
+  const pd=promo&&promo.ok&&UI.usePromo!==false?promo.disc:0,sd=sale?sale.disc:0,useSale=sd>0&&sd>=pd;
+  const promoDisc=useSale?0:pd,saleDisc=useSale?sd:0;
+  return {sub,disc,promo,promoDisc,sale,saleDisc,tot:Math.max(0,Math.round((sub-disc-promoDisc-saleDisc)*100)/100)};
 }
 async function checkout(){
   if(!UI.cart.length)return;
-  const {sub,promo,promoDisc,tot}=cartTotals(),ts=Date.now();
+  const {sub,promo,promoDisc,saleDisc,tot}=cartTotals(),ts=Date.now();
   const sale={ts,items:UI.cart.map(i=>({...i})),subtotal:sub,total:tot,method:UI.method||"Efectivo",channel:UI.channel||"Tienda",
-    customer:(($("#pos-cust")||{}).value||"").trim()||(promo&&promo.c?promo.c.name:""),phone:UI.phone||"",promo:promoDisc?"primera":""};
+    customer:(($("#pos-cust")||{}).value||"").trim()||(promo&&promo.c?promo.c.name:""),phone:UI.phone||"",promo:saleDisc?"general":promoDisc?"primera":""};
   const btn=document.querySelector('[data-act="checkout"]');if(btn)btn.disabled=true;
   try{const cash=(UI.method||"Efectivo")==="Efectivo"?num(UI.cash):0;await put("sales",uid(),sale);UI.lastSale={...sale,cash};UI.cash="";UI.showDisc=false;UI.pick=null;UI.cart=[];UI.discount=0;UI.phone="";UI.usePromo=true;toast("Venta registrada: "+money(sale.total));render()}catch{if(btn)btn.disabled=false}
 }
@@ -1500,7 +1517,8 @@ document.addEventListener("submit",async e=>{
     if(f.id==="f-adj"){const p=S.products.find(x=>x.id===v("a-pid")),q=Math.round(num(v("a-qty")));if(!p||!q){toast("Escribe cuántas piezas (+ o −)");return}
       await put("purchases",uid(),{type:"ajuste",ts:Date.now(),pid:p.id,qty:q,unitCost:num(p.cost),total:q*num(p.cost),reason:v("a-why").trim()});lastKey="";toast("Ajuste registrado");}
     if(f.id==="f-set"){await put("config","business",{...S.settings,name:v("s-name").trim()||DEFAULTS.name,tagline:v("s-tag").trim(),phone:v("s-phone").trim(),currency:v("s-cur"),openingCash:num(v("s-cash")),fixedAssets:num(v("s-fa")),liabilities:num(v("s-liab")),storeUrl:v("s-url").trim(),city:v("s-city").trim(),
-      promo:{active:$("#s-pr-on").checked,title:v("s-pr-title").trim(),percent:num(v("s-pr-pct")),minimum:num(v("s-pr-min")),end:v("s-pr-end")}});lastKey="";toast("Ajustes guardados. Publica la página web para que la promoción se actualice ahí.");}
+      promo:{active:$("#s-pr-on").checked,title:v("s-pr-title").trim(),percent:num(v("s-pr-pct")),minimum:num(v("s-pr-min")),end:v("s-pr-end")},
+      sale:{active:$("#s-sl-on").checked,title:v("s-sl-title").trim(),percent:num(v("s-sl-pct")),minimum:num(v("s-sl-min")),start:v("s-sl-start"),end:v("s-sl-end")}});lastKey="";toast("Ajustes guardados. Publica la página web para que la promoción se actualice ahí.");}
   }catch{}finally{if(btn)btn.disabled=false;schedule()}
 });
 boot();

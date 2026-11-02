@@ -209,10 +209,15 @@ const pic=(m,alt=true)=>m.photo?`<img src="${esc(m.photo)}" alt="${alt?esc(m.nam
 // La descripción trae «característica · característica · Talla M: largo 71 cm, pecho 122 cm».
 const specsOf=d=>String(d||"").split(" · ").filter(s=>s&&!/^Talla /.test(s));
 const measureOf=d=>(String(d||"").split(" · ").find(s=>/^Talla /.test(s))||"").replace(/^Talla [^:]+:\s*/,"");
-const promo=()=>{const p=C.settings.promo;if(!p)return null;if(p.end&&new Date().toISOString().slice(0,10)>p.end)return null;return p};
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`};
+const promo=()=>{const p=C.settings.promo;if(!p)return null;if(p.end&&today()>p.end)return null;return p};
+// Descuento para todos en unas fechas: «now» durante las fechas, «soon» las 3 semanas previas.
+const sale=()=>{const s=C.settings.sale;if(!s||!s.percent)return null;const d=today();
+  if((!s.start||d>=s.start)&&(!s.end||d<=s.end))return {...s,now:true};
+  if(s.start&&d<s.start&&(new Date(s.start+"T12:00")-new Date())<21*864e5)return {...s,soon:true};return null};
 
 function render(){
-  const all=groups(),st=C.settings,pr=promo(),n=U.bag.reduce((a,b)=>a+b.qty,0);
+  const all=groups(),st=C.settings,pr=promo(),sl=sale(),n=U.bag.reduce((a,b)=>a+b.qty,0);
   const seasons=[...new Set(all.map(m=>m.season).filter(Boolean))];
   const featured=seasons.filter(s=>!/todo el a/i.test(s))[0]||"Invierno";
   const q=norm(U.q);
@@ -220,7 +225,7 @@ function render(){
   const cats=[...new Set(all.map(m=>m.category).filter(Boolean))];
   const order=(st.categories||[]);cats.sort((a,b)=>(order.indexOf(a)+1||99)-(order.indexOf(b)+1||99));
   let h=`<div class="topbar"><div class="wrap"><span class="side">${icon("truck",16)} Envíos a todo México</span>
-    <span class="mid">${pr?`<b>${esc(pr.title)}:</b> ${pr.percent}% en tu primera compra al registrarte`:esc(st.tagline||"")}</span>
+    <span class="mid">${sl&&sl.now?`<b>${esc(sl.title)}:</b> ${sl.percent}% en toda la tienda · hasta el ${fdate(sl.end)}`:sl&&sl.soon?`<b>Muy pronto · ${esc(sl.title)}:</b> ${sl.percent}% en toda la tienda del ${fdate(sl.start)} al ${fdate(sl.end)}`:pr?`<b>${esc(pr.title)}:</b> ${pr.percent}% en tu primera compra al registrarte`:esc(st.tagline||"")}</span>
     <span class="side">${st.phone?`${icon("chat",16)} WhatsApp ${esc(st.phone)}`:""}</span></div></div>
   <header class="site"><div class="wrap"><a class="brand" href="#inicio">${MTN}<span><strong>LECHUGA &amp; CO.</strong><small>ROPA · CHAMARRAS · SUDADERAS</small></span></a>
     <nav class="main" aria-label="Secciones"><a href="#coleccion" data-act="cat" data-k="" ${!U.cat?'aria-current="page"':""}>Colección ${esc(featured.replace(/\s*\d{4}$/,""))}</a>${cats.map(c=>`<a href="#coleccion" data-act="cat" data-k="${esc(c)}" ${U.cat===c?'aria-current="page"':""}>${esc(c)}</a>`).join("")}${pr?'<a href="#promocion">Promociones</a>':""}<a href="#nosotros">Nosotros</a><a href="#contacto">Contacto</a></nav>
@@ -236,7 +241,10 @@ function render(){
       <div>${icon("medal",30)}<span><b>Desde 1990</b>American Clothing</span></div>
       <div>${icon("chat",30)}<span><b>Atención personalizada</b>Contáctanos por WhatsApp</span></div></div></div></section>
   <main class="wrap">
-    ${pr?`<section class="promo" id="promocion"><div><h2>❄ ${esc(pr.title)}</h2><div class="sub">Prepárate para la temporada de frío.</div></div>
+    ${sl?`<section class="promo" id="promocion"><div><h2>${sl.soon?"Muy pronto · ":""}${esc(sl.title)}</h2><div class="sub">${sl.now?"Aprovecha: el descuento se aplica solo.":"Aparta desde ya lo que te guste."}</div></div>
+      <div class="pct">${sl.percent}%<small>en toda<br>la tienda</small></div>
+      <ul><li>Para todos los clientes</li><li>Del ${fdate(sl.start)} al ${fdate(sl.end)}</li>${sl.minimum?`<li>Compra mínima de ${money(sl.minimum)} MXN</li>`:"<li>Sin compra mínima</li>"}</ul>
+      <a class="btn line" href="#coleccion">Ver colección →</a></section>`:pr?`<section class="promo" id="promocion"><div><h2>❄ ${esc(pr.title)}</h2><div class="sub">Prepárate para la temporada de frío.</div></div>
       <div class="pct">${pr.percent}%<small>de<br>descuento</small></div>
       <ul><li>En tu primera compra al registrarte</li><li>Compra mínima de ${money(pr.minimum)} MXN</li>${pr.end?`<li>Válido hasta el ${fdate(pr.end)}</li>`:""}</ul>
       <button class="btn line" data-act="reg">${U.firstBuy?"Ya estás registrado ✓":"Registrarme ahora →"}</button></section>`:""}
@@ -282,9 +290,12 @@ function sheetHTML(all){
 }
 function bagHTML(){
   if(!U.showBag)return "";
-  const st=C.settings,pr=promo(),sub=U.bag.reduce((a,b)=>a+b.qty*b.price,0);
-  const eligible=pr&&U.firstBuy&&sub>=pr.minimum,disc=eligible?Math.round(sub*pr.percent)/100:0,total=sub-disc;
-  const text=`Hola ${st.name} 👋 Quiero hacer este pedido:\n\n${U.bag.map(b=>`• ${b.qty} x ${b.name}${b.color?" – "+b.color:""} – Talla ${b.size} – ${money(b.qty*b.price)}`).join("\n")}\n\nSubtotal: ${money(sub)}${eligible?`\nSoy cliente registrado y es mi primera compra: ${pr.percent}% de descuento (−${money(disc)})\nTotal estimado: ${money(total)}`:""}\n\nMi nombre: `;
+  const st=C.settings,pr=promo(),sl=sale(),sub=U.bag.reduce((a,b)=>a+b.qty*b.price,0);
+  // Los descuentos no se acumulan: se usa el mayor.
+  const fd=pr&&U.firstBuy&&sub>=pr.minimum?Math.round(sub*pr.percent)/100:0,sd=sl&&sl.now&&sub>=(sl.minimum||0)?Math.round(sub*sl.percent)/100:0;
+  const useSale=sd>0&&sd>=fd,eligible=!useSale&&fd>0,disc=useSale?sd:fd,total=sub-disc;
+  const discLine=useSale?`${sl.title}: ${sl.percent}% de descuento (−${money(sd)})`:eligible?`Soy cliente registrado y es mi primera compra: ${pr.percent}% de descuento (−${money(fd)})`:"";
+  const text=`Hola ${st.name} 👋 Quiero hacer este pedido:\n\n${U.bag.map(b=>`• ${b.qty} x ${b.name}${b.color?" – "+b.color:""} – Talla ${b.size} – ${money(b.qty*b.price)}`).join("\n")}\n\nSubtotal: ${money(sub)}${disc?`\n${discLine}\nTotal estimado: ${money(total)}`:""}\n\nMi nombre: `;
   const order=U.bag.length?wa(text):"";
   return `<div class="shade" data-act="close-bag"></div><aside class="sheet" role="dialog" aria-modal="true" aria-label="Cesta"><div class="row" style="align-items:center"><h2>Cesta</h2><button class="x" data-act="close-bag">Cerrar ✕</button></div>
     ${U.bag.length?`<div>${U.bag.map((b,i)=>`<div class="line"><div class="ph">${pic({photo:b.photo,name:b.name},false)}</div><div style="min-width:0"><div style="font:600 .88rem var(--f-title)">${esc(b.name)}</div><div class="note">${esc([b.color,"Talla "+b.size].filter(Boolean).join(" · "))}</div><div class="qty"><button data-act="dec" data-k="${i}" aria-label="Quitar uno">−</button><span>${b.qty}</span><button data-act="inc" data-k="${i}" aria-label="Agregar uno">+</button></div></div><div>${money(b.qty*b.price)}</div></div>`).join("")}</div>
@@ -292,9 +303,10 @@ function bagHTML(){
         ${U.firstBuy&&sub<pr.minimum?`<span class="note">Agrega ${money(pr.minimum-sub)} más para tu descuento.</span>`:""}
         ${!U.firstBuy?`<span class="note">¿Aún no te registras? <a href="#" data-act="reg">Regístrate aquí</a>, es gratis.</span>`:""}</div>`:""}
       <div class="row"><span>Subtotal</span><span>${money(sub)}</span></div>
-      ${disc?`<div class="row" style="color:var(--good)"><span>Primera compra (${pr.percent}%)</span><span>−${money(disc)}</span></div>`:""}
+      ${disc?`<div class="row" style="color:var(--good)"><span>${useSale?esc(sl.title):"Primera compra"} (${useSale?sl.percent:pr.percent}%)</span><span>−${money(disc)}</span></div>`:""}
+      ${useSale&&fd?`<p class="note" style="margin:0">Los descuentos no se acumulan: tu descuento de primera compra lo conservas para otra visita.</p>`:""}
       <div class="row tot"><span>Total${disc?" estimado":""}</span><span>${money(total)}</span></div>
-      ${order?`<a class="btn wa" href="${esc(order)}" target="_blank" rel="noopener">Enviar pedido por WhatsApp</a><p class="note" style="margin:0">Se abre WhatsApp con tu pedido escrito. Te confirmamos existencias, pago y entrega.${disc?" El descuento se confirma con tu número registrado.":""}</p>`:`<p class="note">Pronto podrás enviar tu pedido por WhatsApp.</p>`}`
+      ${order?`<a class="btn wa" href="${esc(order)}" target="_blank" rel="noopener">Enviar pedido por WhatsApp</a><p class="note" style="margin:0">Se abre WhatsApp con tu pedido escrito. Te confirmamos existencias, pago y entrega.${disc?(useSale?" El descuento se confirma al pagar.":" El descuento se confirma con tu número registrado."):""}</p>`:`<p class="note">Pronto podrás enviar tu pedido por WhatsApp.</p>`}`
     :`<p class="note">Tu cesta está vacía.</p>`}</aside>`;
 }
 function regHTML(){

@@ -63,6 +63,8 @@ const DEFAULT_SETTINGS = {
   seasons: ["Otoño-Invierno 2026", "Primavera-Verano 2027", "Todo el año"],
   city: "Chihuahua, Chihuahua",
   promo: { active: true, title: "Compra anticipada", percent: 10, minimum: 1000, end: "2026-11-30" },
+  // Descuento para todos los clientes en unas fechas (no se acumula con el de primera compra: se usa el mayor).
+  sale: { active: true, title: "Buen Fin", percent: 10, minimum: 0, start: "2026-11-10", end: "2026-11-17" },
 };
 
 function getSettings() {
