@@ -12,3 +12,8 @@ caja-finanzas.html
 
 # Archivos que el usuario entrega para cargar
 entrada/
+
+# Presentación: herramientas y capturas de prueba
+presentacion/node_modules/
+presentacion/capturas/
+presentacion/render/

@@ -251,7 +251,10 @@ code.url{font-family:var(--f-mono);font-size:.82rem;background:var(--sunk);paddi
 @keyframes pop{from{transform:scale(.97);opacity:.4}to{transform:none;opacity:1}}
 @keyframes flash{0%{background:var(--thread-soft)}100%{background:transparent}}
 @media (prefers-reduced-motion:reduce){.picker,.pos-done,.cline.flash{animation:none}.mcard:hover{transform:none}}
-@media (max-width:860px){.cart{position:static;max-height:none}}
+@media (max-width:860px){.pos{grid-template-columns:minmax(0,1fr)}.cart{position:static;max-height:none}
+  .picker{position:fixed;left:0;right:0;bottom:0;z-index:12;border-radius:16px 16px 0 0;max-height:72vh;overflow:auto;box-shadow:0 -10px 30px rgba(16,25,35,.25);padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
+  .cartbar{display:flex!important}}
+.cartbar{display:none;position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:11;justify-content:center;padding:15px;font-size:1rem;border-radius:12px;box-shadow:0 8px 24px rgba(16,25,35,.3)}
 </style>
 </head>
 <body>
@@ -582,6 +585,7 @@ function vVender(){
         <span class="row between"><span class="mprice ${g.priced?"":"none"}">${g.priced?money(g.min)+(g.max>g.min?"+":""):"Sin precio"}</span><span class="small muted">${g.stock} pzs</span></span></button>`).join("")}</div>`
       :`<div class="empty">${S.products.length?"Nada coincide con la búsqueda.":'Primero da de alta tus productos en <a href="#" data-act="tab" data-k="catalogo">Catálogo</a>.'}</div>`}
   </div>
+  ${UI.cart.length&&!pick?`<button class="primary cartbar" data-act="go-cart">Ver ticket · ${units} pza${units===1?"":"s"} · ${money(tot)}</button>`:""}
   <aside class="card cart">
     ${pick?pickerHTML(pick,all):""}
     <div class="row between"><h3>Ticket ${units?`<span class="pill">${units} pza${units===1?"":"s"}</span>`:""}</h3>${UI.cart.length?`<button class="ghost tiny danger" data-act="clear-cart">Vaciar</button>`:""}</div>
@@ -613,7 +617,7 @@ function pickerHTML(g,all){
       <button class="tiny ghost" data-act="pick-close" aria-label="Cerrar">✕</button></div>
     ${sibs.length>1?`<div class="row" style="gap:6px">${sibs.map(x=>`<button class="chip" data-act="pick" data-k="${esc(x.key)}" aria-pressed="${x.key===g.key}"><i class="ed-sw" style="width:10px;height:10px;background:${swatch(x.color)}"></i> ${esc(x.color||"Único")}</button>`).join("")}</div>`:""}
     ${g.priced?`<div class="small muted">Toca la talla para agregarla al ticket:</div>
-      <div class="sizes-pos">${g.rows.map(r=>{const s=g.sm[r.id]||0;return `<button class="szb ${s<=0?"zero":""}" data-act="add" data-k="${r.id}"><b>${esc(r.size||"Única")}</b><span>${s} pza${s===1?"":"s"}</span>${num(r.price)!==pr?`<span>${money(r.price)}</span>`:""}</button>`}).join("")}</div>`
+      <div class="sizes-pos">${g.rows.map(r=>{const s=g.sm[r.id]||0;return `<button class="szb ${s<=0?"zero":""}" data-act="add" data-k="${r.id}"><b>${esc(r.size||"Única")}</b><span>${Math.max(0,s)} pza${Math.max(0,s)===1?"":"s"}</span>${num(r.price)!==pr?`<span>${money(r.price)}</span>`:""}</button>`}).join("")}</div>`
       :`<div class="banner" style="display:grid;gap:8px">Esta prenda aún no tiene precio. Ponlo aquí y se guarda para todas sus tallas:
         <div class="row"><input id="pk-price" inputmode="decimal" placeholder="Precio $" style="max-width:130px"><input id="pk-cost" inputmode="decimal" placeholder="Costo $" style="max-width:130px"><button class="primary tiny" data-act="pk-save" data-k="${esc(g.key)}">Guardar</button></div></div>`}
   </div>`;
@@ -1404,11 +1408,12 @@ document.addEventListener("click",async e=>{
     case "cat":UI.cat=k;render();break;
     case "season":UI.season=k;render();break;
     case "add":{const p=S.products.find(x=>x.id===k);if(!p)break;if(!(num(p.price)>0)){toast("Esta prenda aún no tiene precio.");break}const i=UI.cart.find(x=>x.pid===k);const s=stockMap()[k]||0;
-      if((i?i.qty:0)>=s)toast("Ojo: el sistema marca "+s+" en tienda de la talla "+(p.size||""));else toast("Agregado: talla "+(p.size||"única"));
+      if(s<=0)toast("Ojo: no hay piezas registradas de la talla "+(p.size||"")+". Revisa el inventario.");else if((i?i.qty:0)>=s)toast("Ojo: solo hay "+s+" de la talla "+(p.size||""));else toast("Agregado: talla "+(p.size||"única"));
       const ph=p.photo?photoUrl(p):((S.products.find(x=>x.photo&&modelKey(x)===modelKey(p)&&(x.color||"")===(p.color||""))||{}).photo?photoUrl(S.products.find(x=>x.photo&&modelKey(x)===modelKey(p)&&(x.color||"")===(p.color||""))):"");
       i?i.qty++:UI.cart.push({pid:p.id,name:p.name,size:p.size||"",color:p.color||"",photo:ph,qty:1,price:num(p.price),cost:num(p.cost)});UI.flash=p.id;UI.cash="";render();setTimeout(()=>{UI.flash=null},900);break}
     case "pick":UI.pick=UI.pick===k&&b.classList.contains("mcard")?null:k;render();break;
     case "pick-close":UI.pick=null;render();break;
+    case "go-cart":{const c=document.querySelector("aside.cart");if(c)c.scrollIntoView({behavior:"smooth",block:"start"});break}
     case "rm-line":UI.cart.splice(+k,1);render();break;
     case "method":UI.method=k;render();break;
     case "channel":UI.channel=k;render();break;
