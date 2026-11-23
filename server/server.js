@@ -5,7 +5,7 @@ const path = require("node:path");
 const fs = require("node:fs");
 const crypto = require("node:crypto");
 const { execFile } = require("node:child_process");
-const { db, ROOT, getSettings, saveSettings, checkPassword, hashPassword, createUser, PHOTO_EXT, phoneKey } = require("./db");
+const { db, ROOT, getSettings, saveSettings, checkPassword, hashPassword, createUser, PHOTO_EXT, phoneKey, PERMS, ROLE_PERMS, permsOf } = require("./db");
 const agente = require("./agente");
 
 const PORT = Number(process.env.PORT || 8787);
@@ -62,10 +62,13 @@ function tooManyAttempts(key) {
 function userFor(req) {
   const m = /^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization || "");
   if (!m) return null;
-  const row = db.prepare(`SELECT u.id, u.username, u.name, u.role FROM sessions s JOIN users u ON u.id = s.user_id
+  const row = db.prepare(`SELECT u.id, u.username, u.name, u.role, u.perms FROM sessions s JOIN users u ON u.id = s.user_id
     WHERE s.token = ? AND s.expires > ? AND u.active = 1`).get(m[1], Date.now());
-  return row || null;
+  return row ? meOf(row) : null;
 }
+
+// Lo que la caja recibe de quien inició sesión (nunca la contraseña).
+const meOf = u => ({ id: u.id, username: u.username, name: u.name, role: u.role, perms: permsOf(u) });
 
 /* ---------- lectura del estado completo ---------- */
 function state(user) {
@@ -90,7 +93,16 @@ function state(user) {
     id: p.id, type: p.type, ts: p.ts, pid: p.product_id, qty: p.qty, unitCost: p.unit_cost, total: p.total,
     supplier: p.supplier, method: p.method, reason: p.reason, example: !!p.example,
   }));
-  return { version, me: user, settings: getSettings(), products, sales, expenses, purchases, customers };
+  // Cada quien recibe solo lo que su puesto necesita: los costos y los gastos son de quien ve finanzas, catálogo o compras.
+  const can = k => user.perms.includes(k), seeCost = can("finanzas") || can("catalogo") || can("movs");
+  if (!seeCost) {
+    for (const p of products) { p.cost = 0; p.cost0 = 0; }
+    for (const s of sales) for (const i of s.items) i.cost = 0;
+    for (const p of purchases) { p.unitCost = 0; p.total = 0; p.supplier = ""; p.method = ""; }
+  }
+  return { version, me: user, settings: getSettings(), products, sales,
+    expenses: can("finanzas") || can("movs") ? expenses : [], purchases,
+    customers: can("clientes") || can("vender") || can("finanzas") ? customers : [] };
 }
 
 /* ---------- promoción de primera compra para clientes registrados ---------- */
@@ -188,7 +200,7 @@ function stockOf(id) {
   return p.stock0 + inn - out;
 }
 function saveCatalog(b, user) {
-  const admin = user.role === "admin";
+  const admin = user.perms.includes("archivar");
   const prods = Array.isArray(b.products) ? b.products.slice(0, 600) : [];
   const photos = Array.isArray(b.photos) ? b.photos.slice(0, 60) : [];
   db.exec("BEGIN");
@@ -198,7 +210,7 @@ function saveCatalog(b, user) {
       if (!idOk(id)) throw new Error(`El código «${id}» no es válido: usa letras, números y guiones`);
       const old = db.prepare("SELECT active FROM products WHERE id = ?").get(id);
       if ((x.active === false && (!old || old.active)) || (old && !old.active && x.active !== false))
-        if (!admin) throw new Error("Solo el administrador puede archivar o restaurar prendas");
+        if (!admin) throw new Error("Tu usuario no tiene permiso para archivar o restaurar prendas");
       upsertProduct(id, x);
       if (!old || x.stock === undefined) continue;
       // Existencias: si la prenda nunca se ha movido se corrige la carga inicial; si ya tiene ventas o compras, queda como ajuste.
@@ -325,6 +337,9 @@ function serveStatic(req, res, pathname) {
 
 /* ---------- rutas ---------- */
 const COLS = { products: upsertProduct, expenses: upsertExpense };
+const roleOk = r => ["admin", "encargado", "vendedor", "consulta"].includes(r) ? r : "vendedor";
+// Casillas que manda la caja; si no manda ninguna, se usan las del puesto. «admin» solo lo da el puesto de administrador.
+const permsIn = (list, role) => Array.isArray(list) ? PERMS.filter(p => p !== "admin" && list.includes(p)) : ROLE_PERMS[role].filter(p => p !== "admin");
 async function route(req, res) {
   const url = new URL(req.url, "http://localhost");
   const p = url.pathname, m = req.method;
@@ -352,7 +367,7 @@ async function route(req, res) {
     if (!/^[a-z0-9.&_-]{3,30}$/.test(username)) return fail(res, 400, "El usuario debe tener de 3 a 30 letras, números o los signos . & _ -, sin espacios");
     if (password.length < 8) return fail(res, 400, "La contraseña debe tener al menos 8 caracteres");
     createUser({ username, name, role: "admin", password });
-    const u = db.prepare("SELECT id, username, name, role FROM users WHERE username = ?").get(username);
+    const u = meOf(db.prepare("SELECT * FROM users WHERE username = ?").get(username));
     const token = crypto.randomBytes(32).toString("hex");
     db.prepare("INSERT INTO sessions(token, user_id, expires) VALUES (?, ?, ?)").run(token, u.id, Date.now() + SESSION_DAYS * 864e5);
     return send(res, 200, { token, me: u });
@@ -387,13 +402,17 @@ async function route(req, res) {
     const token = crypto.randomBytes(32).toString("hex");
     db.prepare("DELETE FROM sessions WHERE expires < ?").run(Date.now());
     db.prepare("INSERT INTO sessions(token, user_id, expires) VALUES (?, ?, ?)").run(token, u.id, Date.now() + SESSION_DAYS * 864e5);
-    return send(res, 200, { token, me: { id: u.id, username: u.username, name: u.name, role: u.role } });
+    return send(res, 200, { token, me: meOf(u) });
   }
 
   const user = userFor(req);
   if (!user) return fail(res, 401, "Inicia sesión");
-  const admin = user.role === "admin";
-  const needAdmin = () => { if (!admin) { fail(res, 403, "Solo el administrador puede hacer esto"); return false; } return true; };
+  const PERM_TXT = { vender: "vender", clientes: "manejar clientes", catalogo: "cambiar el catálogo", archivar: "archivar o borrar prendas",
+    movs: "registrar gastos y compras", finanzas: "ver los estados financieros", publicar: "publicar la página web",
+    publicidad: "manejar la publicidad", admin: "cambiar usuarios y ajustes" };
+  // need("a", "b") = basta con tener uno de esos permisos. El servidor revisa siempre, aunque la caja ya esconda el botón.
+  const need = (...ks) => { if (ks.some(k => user.perms.includes(k))) return true; fail(res, 403, `Tu usuario no tiene permiso para ${PERM_TXT[ks[0]]}. Pídeselo al administrador.`); return false; };
+  const needAdmin = () => need("admin");
   const b = m === "GET" || m === "DELETE" ? {} : await readBody(req);
 
   if (m === "GET" && p === "/api/version") { checkExternalChanges(); return send(res, 200, { version }); }
@@ -405,15 +424,18 @@ async function route(req, res) {
     const [, col, id] = one;
     if (m === "PUT" && COLS[col]) {
       if (col === "products") {
+        if (!need("catalogo")) return;
         const old = db.prepare("SELECT active FROM products WHERE id = ?").get(id);
         const archiving = b.active === false, restoring = old && !old.active && b.active !== false;
-        if ((archiving || restoring) && !needAdmin()) return;
+        if ((archiving || restoring) && !need("archivar")) return;
       }
+      if (col === "expenses" && !need("movs")) return;
       COLS[col](id, b, user); bump(); return send(res, 200, { ok: true });
     }
-    if (m === "PUT" && col === "sales") { insertSale(id, b, user); bump(); return send(res, 200, { ok: true }); }
-    if (m === "PUT" && col === "purchases") { insertPurchase(id, b, user); bump(); return send(res, 200, { ok: true }); }
+    if (m === "PUT" && col === "sales") { if (!need("vender")) return; insertSale(id, b, user); bump(); return send(res, 200, { ok: true }); }
+    if (m === "PUT" && col === "purchases") { if (!need("movs", "catalogo")) return; insertPurchase(id, b, user); bump(); return send(res, 200, { ok: true }); }
     if (m === "PUT" && col === "fotos") {
+      if (!need("catalogo")) return;
       const mm = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(b.data || ""));
       if (!mm) return fail(res, 400, "La foto debe ser JPG, PNG o WEBP");
       db.prepare(`INSERT INTO photos(product_id, jpeg, mime, updated_at) VALUES (?, ?, ?, ?)
@@ -422,7 +444,9 @@ async function route(req, res) {
       bump(); return send(res, 200, { ok: true });
     }
     if (m === "DELETE") {
-      if (!needAdmin()) return;
+      // Borrar: prendas = archivar · gastos y compras = quien los registra · fotos = catálogo · ventas = solo el administrador.
+      const perm = { products: "archivar", expenses: "movs", purchases: "movs", fotos: "catalogo", sales: "admin" }[col];
+      if (!need(perm)) return;
       if (col === "products") {
         // Solo se elimina una prenda creada por error: si ya tuvo ventas o compras, se archiva para no romper los reportes.
         const used = db.prepare("SELECT (SELECT COUNT(*) FROM sale_items WHERE product_id = ?) + (SELECT COUNT(*) FROM purchases WHERE product_id = ?) n").get(id, id).n;
@@ -448,11 +472,11 @@ async function route(req, res) {
         start: /^\d{4}-\d{2}-\d{2}$/.test(b.sale.start || "") ? b.sale.start : "", end: /^\d{4}-\d{2}-\d{2}$/.test(b.sale.end || "") ? b.sale.end : "" } : cur.sale });
     bump(); return send(res, 200, { ok: true });
   }
-  if (m === "GET" && p === "/api/promo") return send(res, 200, promoCheck(url.searchParams.get("tel"), num(url.searchParams.get("subtotal"))));
+  if (m === "GET" && p === "/api/promo") return need("vender", "clientes") && send(res, 200, promoCheck(url.searchParams.get("tel"), num(url.searchParams.get("subtotal"))));
 
   // Agente de publicidad: solo el administrador.
   if (p.startsWith("/api/agente/")) {
-    if (!needAdmin()) return;
+    if (!need("publicidad")) return;
     const sub = p.slice(12);
     const fileOut = (file, mime) => send(res, 200, fs.readFileSync(file), { "Content-Type": mime, "Cache-Control": "private, max-age=3600" });
     if (m === "GET" && sub === "estado") return send(res, 200, { ...agente.status(), posts: agente.posts(), research: agente.latestResearch(), music: agente.musicList(), log: agente.logRows() });
@@ -496,8 +520,9 @@ async function route(req, res) {
     }
     return fail(res, 404, "Ruta del agente no encontrada");
   }
-  if (m === "POST" && p === "/api/catalogo/guardar") { saveCatalog(b, user); bump(); return send(res, 200, { ok: true }); }
+  if (m === "POST" && p === "/api/catalogo/guardar") { if (!need("catalogo")) return; saveCatalog(b, user); bump(); return send(res, 200, { ok: true }); }
   if (p === "/api/clientes" && m === "POST") {
+    if (!need("clientes", "vender")) return;
     const name = str(b.name, 80), phone = phoneKey(b.phone), email = str(b.email, 120).toLowerCase();
     if (name.length < 2 || phone.length !== 10) return fail(res, 400, "Escribe nombre y WhatsApp a 10 dígitos");
     if (db.prepare("SELECT 1 FROM customers WHERE phone = ?").get(phone)) return fail(res, 400, "Ese WhatsApp ya está registrado");
@@ -512,7 +537,7 @@ async function route(req, res) {
   }
   // Listas de categorías y temporadas: agregar, renombrar (cambia también las prendas) y quitar (mueve sus prendas).
   if (m === "POST" && p === "/api/listas") {
-    if (!needAdmin()) return;
+    if (!need("catalogo")) return;
     const kind = b.kind === "seasons" ? "seasons" : b.kind === "categories" ? "categories" : null;
     if (!kind) return fail(res, 400, "Lista desconocida");
     const col = kind === "seasons" ? "season" : "category";
@@ -537,7 +562,7 @@ async function route(req, res) {
     saveSettings({ ...st, [kind]: list });
     bump(); return send(res, 200, { ok: true });
   }
-  if (m === "POST" && p === "/api/publicar") { if (!needAdmin()) return; return send(res, 200, await publishStore()); }
+  if (m === "POST" && p === "/api/publicar") { if (!need("publicar")) return; return send(res, 200, await publishStore()); }
   if (m === "DELETE" && p === "/api/ejemplos") {
     if (!needAdmin()) return;
     db.exec(`BEGIN; DELETE FROM sales WHERE example = 1; DELETE FROM expenses WHERE example = 1; DELETE FROM purchases WHERE example = 1;
@@ -546,11 +571,13 @@ async function route(req, res) {
   }
   if (p === "/api/usuarios") {
     if (!needAdmin()) return;
-    if (m === "GET") return send(res, 200, db.prepare("SELECT id, username, name, role, active FROM users ORDER BY id").all());
+    if (m === "GET") return send(res, 200, { perms: PERMS, roles: ROLE_PERMS,
+      users: db.prepare("SELECT id, username, name, role, active, perms FROM users ORDER BY id").all().map(u => ({ ...meOf(u), active: !!u.active })) });
     if (m === "POST") {
       if (!/^[a-z0-9.&_-]{3,30}$/.test(str(b.username).toLowerCase())) return fail(res, 400, "El usuario debe tener de 3 a 30 letras, números o los signos . & _ -, sin espacios");
       if (String(b.password || "").length < 8) return fail(res, 400, "La contraseña debe tener al menos 8 caracteres");
-      try { createUser({ username: str(b.username), name: str(b.name, 60) || str(b.username), role: b.role === "admin" ? "admin" : "vendedor", password: String(b.password) }); }
+      const role = roleOk(b.role);
+      try { createUser({ username: str(b.username), name: str(b.name, 60) || str(b.username), role, password: String(b.password), perms: role === "admin" ? null : permsIn(b.perms, role) }); }
       catch { return fail(res, 400, "Ese usuario ya existe"); }
       return send(res, 200, { ok: true });
     }
@@ -566,6 +593,12 @@ async function route(req, res) {
       db.prepare("UPDATE users SET salt = ?, hash = ? WHERE id = ?").run(salt, hash, target.id);
       db.prepare("DELETE FROM sessions WHERE user_id = ?").run(target.id);
     }
+    if (b.role !== undefined || b.perms !== undefined) {
+      const role = b.role !== undefined ? roleOk(b.role) : target.role;
+      if (target.id === user.id && role !== "admin") return fail(res, 400, "No puedes quitarte a ti mismo el puesto de administrador");
+      db.prepare("UPDATE users SET role = ?, perms = ? WHERE id = ?").run(role, role === "admin" ? null : JSON.stringify(permsIn(b.perms, role)), target.id);
+    }
+    if (b.name !== undefined && str(b.name, 60)) db.prepare("UPDATE users SET name = ? WHERE id = ?").run(str(b.name, 60), target.id);
     if (typeof b.active === "boolean") {
       if (target.id === user.id) return fail(res, 400, "No puedes desactivar tu propia cuenta");
       db.prepare("UPDATE users SET active = ? WHERE id = ?").run(b.active ? 1 : 0, target.id);

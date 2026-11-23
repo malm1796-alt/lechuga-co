@@ -222,6 +222,16 @@ code.url{font-family:var(--f-mono);font-size:.82rem;background:var(--sunk);paddi
 .szb:hover{background:var(--denim);color:var(--on-denim)}
 .szb:hover span{color:inherit}
 .szb.zero{border-style:dashed;opacity:.6}
+.qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.qcell{display:grid;gap:4px;padding:6px;border-radius:12px;background:var(--surface);border:1.5px solid var(--line)}
+.qcell.on{border-color:var(--denim);box-shadow:0 0 0 2px var(--thread-soft)}
+.qcell.zero{opacity:.65}
+.qsize{display:grid;gap:2px;justify-items:center;border:0;background:transparent;padding:6px 2px;font-weight:400}
+.qsize b{font:800 1.15rem var(--f-display)}
+.qsize span{font-size:.7rem;color:var(--muted)}
+.qstep{display:grid;grid-template-columns:40px 1fr 40px;align-items:center;text-align:center}
+.qstep button{padding:6px 0;font-size:1.1rem;font-weight:800;border-radius:8px}
+.qstep b{font:800 1.1rem var(--f-display)}
 .szb:active{transform:scale(.95)}
 .clines{display:grid;gap:2px}
 .cline{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 6px;border-bottom:1px dashed var(--line);border-radius:8px}
@@ -298,7 +308,15 @@ const NO_SEASON="Sin temporada";
 const DEFAULTS={name:"Lechuga & Co.",tagline:"Ropa fresca de temporada",phone:"",address:"",currency:"MXN",openingCash:0,fixedAssets:0,liabilities:0};
 const S={products:[],sales:[],expenses:[],purchases:[],settings:{...DEFAULTS},ready:false,me:null,version:0,err:null,users:null,pub:null};
 const UI={tab:"hoy",cart:[],q:"",cat:"",season:"",discount:0,period:"mes",offset:0,editing:null,lastSale:null,confirm:null,mov:"gastos"};
-const isAdmin=()=>S.me&&S.me.role==="admin";
+// Permisos: cada usuario trae sus casillas desde el servidor (que también las revisa).
+const can=k=>!!(S.me&&(S.me.perms||[]).includes(k));
+const isAdmin=()=>can("admin");
+const ROLES={admin:"Administrador",encargado:"Encargado",vendedor:"Vendedor",consulta:"Solo consulta"};
+const ROLE_HINT={admin:"todo",encargado:"vende, catálogo, gastos y finanzas",vendedor:"vende y registra clientes",consulta:"solo ve ventas y finanzas"};
+const PERM_LABEL={vender:"Vender en la caja",clientes:"Registrar y ver clientes",catalogo:"Cambiar precios, piezas y fotos",archivar:"Archivar o borrar prendas",movs:"Registrar gastos y compras",finanzas:"Ver estados financieros y costos",publicar:"Publicar la página web",publicidad:"Publicidad en redes"};
+// Qué pestaña pide qué permiso (basta uno). Las que no están aquí las ve todo el que entra.
+const TAB_PERM={vender:["vender"],catalogo:["catalogo"],clientes:["clientes","vender"],movs:["movs"],reportes:["finanzas"],conexiones:["publicar","admin"],publicidad:["publicidad"],ajustes:["admin"]};
+const tabOk=k=>!TAB_PERM[k]||TAB_PERM[k].some(can);
 const photoUrl=p=>p&&p.photo?API+"/api/fotos/"+encodeURIComponent(p.id)+"?v="+p.photo:"";
 
 const $=s=>document.querySelector(s);
@@ -465,9 +483,9 @@ function restore(c){if(!c)return;Object.entries(c.m).forEach(([id,v])=>{const el
   if(c.f){const el=document.getElementById(c.f);if(el){el.focus();try{if(c.s!=null)el.setSelectionRange(c.s,c.e)}catch{}}}}
 function render(){
   const st=S.settings;
-  $("#hdr-logo").innerHTML=logoSVG(30);$("#hdr-name").textContent=st.name;$("#hdr-tag").textContent=S.me?S.me.name+" · "+(isAdmin()?"Administrador":"Vendedor"):st.tagline||"";
+  $("#hdr-logo").innerHTML=logoSVG(30);$("#hdr-name").textContent=st.name;$("#hdr-tag").textContent=S.me?S.me.name+" · "+(ROLES[S.me.role]||"Vendedor"):st.tagline||"";
   $("#hdr-today").innerHTML=esc(fdate(Date.now(),{weekday:"long",day:"numeric",month:"long"}))+(S.me?`<div><button class="ghost tiny" data-act="logout">Salir</button></div>`:"");
-  $("#tabs").innerHTML=S.me?TABS.filter(([k])=>k!=="publicidad"||isAdmin()).map(([k,l])=>`<button data-act="tab" data-k="${k}" ${UI.tab===k?'aria-current="page"':""}>${l}</button>`).join(""):"";
+  $("#tabs").innerHTML=S.me?TABS.filter(([k])=>tabOk(k)).map(([k,l])=>`<button data-act="tab" data-k="${k}" ${UI.tab===k?'aria-current="page"':""}>${l}</button>`).join(""):"";
   const key=(S.me?UI.tab:"login")+"|"+UI.editing+"|"+UI.mov+"|"+(UI.lastSale?1:0);
   const c=key===lastKey?capture():null;lastKey=key;
   let h="";
@@ -475,6 +493,7 @@ function render(){
   if(S.err)h+=`<div class="banner">${esc(S.err)} La app reintenta cada 15 segundos.</div>`;
   if(!S.ready){$("#main").innerHTML=h+`<div class="empty">Conectando con la PC de la tienda…</div>`;return}
   if(S.products.some(p=>p.example)||S.sales.some(s=>s.example))h+=`<div class="banner">Estás viendo <b>datos de ejemplo</b> para practicar. ${isAdmin()?'Bórralos en <a href="#" data-act="tab" data-k="ajustes">Ajustes</a>':"Pide al administrador que los borre"} antes de empezar a vender.</div>`;
+  if(!tabOk(UI.tab))UI.tab="hoy";
   h+=({hoy:vHoy,vender:vVender,catalogo:vCatalogo,clientes:vClientes,movs:vMovs,reportes:vReportes,conexiones:vConexiones,publicidad:vPublicidad,marca:vMarca,ajustes:vAjustes}[UI.tab])();
   $("#main").innerHTML=h;restore(c);
 }
@@ -568,8 +587,8 @@ function vVender(){
     <div class="ticket" id="tk">${esc(txt)}</div>
     <label>WhatsApp del cliente<input id="tk-phone" inputmode="tel" placeholder="10 dígitos" value="${esc(s.phone||"")}"></label>
     <div class="row"><button class="wa" data-act="send-ticket">Enviar ticket por WhatsApp</button><button data-act="copy-ticket">Copiar ticket</button><button class="primary" data-act="new-sale">Nueva venta</button></div></div>`}
-  const all=colorGroups(activeProducts()),q=UI.q.toLowerCase().trim();
-  const list=all.filter(g=>(!UI.cat||g.category===UI.cat)&&(!UI.season||(g.season||NO_SEASON)===UI.season)&&(!q||[g.name,g.color,g.category,g.season,...g.rows.map(r=>r.sku+" "+r.size)].join(" ").toLowerCase().includes(q)));
+  const all=modelGroups(activeProducts()),q=UI.q.toLowerCase().trim();
+  const list=all.filter(g=>(!UI.cat||g.category===UI.cat)&&(!UI.season||(g.season||NO_SEASON)===UI.season)&&(!q||[g.name,g.category,g.season,...g.colors.map(c=>c.color),...g.rows.map(r=>r.sku+" "+r.size)].join(" ").toLowerCase().includes(q)));
   const cats=[...new Set(all.map(g=>g.category).filter(Boolean))],seas=[...new Set(all.map(g=>g.season||NO_SEASON))];
   const {sub,disc,promo,promoDisc,sale,saleDisc,tot}=cartTotals(),units=UI.cart.reduce((a,i)=>a+i.qty,0),method=UI.method||"Efectivo",cash=num(UI.cash),pick=UI.pick&&all.find(g=>g.key===UI.pick);
   return `<div class="pos">
@@ -581,19 +600,20 @@ function vVender(){
     ${list.length?`<div class="mgrid">${list.map(g=>`<button class="mcard ${g.stock<=0?"out":""} ${UI.pick===g.key?"on":""}" data-act="pick" data-k="${esc(g.key)}">
         <span class="mph">${g.photo?`<img src="${esc(photoUrl(g.photo))}" alt="" loading="lazy">`:`<span class="ed-noph" style="width:100%;height:100%">${mountainSVG(44,{fg:"#fff"})}</span>`}
           ${!g.priced?'<span class="mflag">Sin precio</span>':g.stock<=0?'<span class="mflag bad">Agotado</span>':g.stock<=2?`<span class="mflag warn">Últimas ${g.stock}</span>`:""}</span>
-        <span class="mname">${esc(g.name)}</span><span class="small muted">${esc(g.color||"")}</span>
+        <span class="mname">${esc(g.name)}</span><span class="small muted">${g.colors.length>1?`${g.colors.length} colores`:esc(g.colors[0].color||"")} · ${g.sizes.join(" ")}</span>
+        ${g.colors.length>1?`<span class="row" style="gap:4px">${g.colors.map(c=>`<i class="ed-sw" style="width:12px;height:12px;background:${swatch(c.color)}" title="${esc(c.color)}"></i>`).join("")}</span>`:""}
         <span class="row between"><span class="mprice ${g.priced?"":"none"}">${g.priced?money(g.min)+(g.max>g.min?"+":""):"Sin precio"}</span><span class="small muted">${g.stock} pzs</span></span></button>`).join("")}</div>`
       :`<div class="empty">${S.products.length?"Nada coincide con la búsqueda.":'Primero da de alta tus productos en <a href="#" data-act="tab" data-k="catalogo">Catálogo</a>.'}</div>`}
   </div>
   ${UI.cart.length&&!pick?`<button class="primary cartbar" data-act="go-cart">Ver ticket · ${units} pza${units===1?"":"s"} · ${money(tot)}</button>`:""}
   <aside class="card cart">
-    ${pick?pickerHTML(pick,all):""}
+    ${pick?pickerHTML(pick):""}
     <div class="row between"><h3>Ticket ${units?`<span class="pill">${units} pza${units===1?"":"s"}</span>`:""}</h3>${UI.cart.length?`<button class="ghost tiny danger" data-act="clear-cart">Vaciar</button>`:""}</div>
     ${UI.cart.length?`<div class="clines">${UI.cart.map((i,ix)=>`<div class="cline ${UI.flash===i.pid?"flash":""}">${i.photo?`<img src="${esc(i.photo)}" alt="">`:`<span class="ed-noph" style="width:40px;height:50px"></span>`}
         <div style="min-width:0"><div class="cname">${esc(i.name)}</div><div class="small muted">${esc([i.color,i.size&&"Talla "+i.size].filter(Boolean).join(" · "))} · ${money(i.price)}</div>
           <div class="qty"><button class="tiny" data-act="dec" data-k="${ix}" aria-label="Quitar uno">−</button><span class="num">${i.qty}</span><button class="tiny" data-act="inc" data-k="${ix}" aria-label="Agregar uno">+</button></div></div>
         <div style="display:grid;justify-items:end;gap:6px"><b class="num">${money(i.qty*i.price)}</b><button class="tiny ghost danger" data-act="rm-line" data-k="${ix}" aria-label="Quitar del ticket">✕</button></div></div>`).join("")}</div>`
-      :`<div class="empty" style="padding:18px">Toca un modelo, elige la talla y se agrega aquí.</div>`}
+      :`<div class="empty" style="padding:18px">Toca un modelo, elige color y cuántas piezas de cada talla.</div>`}
     <div class="seg" role="group" aria-label="Forma de pago">${METHODS.map(m=>`<button data-act="method" data-k="${m}" aria-pressed="${method===m}">${m}</button>`).join("")}</div>
     ${method==="Efectivo"&&UI.cart.length?`<div class="cashbox"><label>Recibe<input id="pos-cash" inputmode="decimal" placeholder="$" value="${esc(UI.cash||"")}" data-fresh="1"></label>
       <div class="row" style="gap:6px"><button class="tiny" data-act="cash" data-k="${tot}">Exacto</button>${QUICK_CASH.filter(v=>v>=tot).slice(0,3).map(v=>`<button class="tiny" data-act="cash" data-k="${v}">${money(v)}</button>`).join("")}</div>
@@ -610,16 +630,36 @@ function vVender(){
     <button class="primary paybtn" data-act="checkout" ${UI.cart.length&&!(method==="Efectivo"&&cash&&cash<tot)?"":"disabled"}>Cobrar ${money(tot)}</button>
   </aside></div>`;
 }
-function pickerHTML(g,all){
-  const sibs=all.filter(x=>x.model===g.model),pr=g.min;
-  return `<div class="picker"><div class="row between" style="align-items:start"><div style="display:flex;gap:10px;min-width:0">${g.photo?`<img src="${esc(photoUrl(g.photo))}" alt="" class="pk-img">`:""}
-      <div style="min-width:0"><b>${esc(g.name)}</b><div class="small muted">${esc(g.color||"")}</div><div class="mprice ${g.priced?"":"none"}">${g.priced?money(pr)+(g.max>pr?" – "+money(g.max):""):"Sin precio"}</div></div></div>
+// Un artículo por modelo: los colores y las tallas se eligen adentro.
+function modelGroups(list){
+  const by=new Map();
+  for(const c of colorGroups(list)){if(!by.has(c.model))by.set(c.model,{key:c.model,model:c.model,name:c.name,season:c.season,category:c.category,colors:[],rows:[]});
+    const m=by.get(c.model);m.colors.push(c);m.rows.push(...c.rows)}
+  return [...by.values()].map(m=>{const pr=m.colors.filter(c=>c.priced);m.priced=pr.length>0;m.min=m.priced?Math.min(...pr.map(c=>c.min)):0;m.max=m.priced?Math.max(...pr.map(c=>c.max)):0;
+    m.stock=m.colors.reduce((a,c)=>a+c.stock,0);m.photo=(m.colors.find(c=>c.photo)||{}).photo||null;m.sm=m.colors[0].sm;
+    m.sizes=[...new Set(m.rows.map(r=>r.size||"Única"))].sort((a,b)=>sizeRank(a)-sizeRank(b));return m})
+    .sort((a,b)=>(b.priced-a.priced)||a.name.localeCompare(b.name));
+}
+// Selector: color, cuántas piezas de cada talla (se suman al ticket) y, para el administrador, editar las piezas.
+function pickerHTML(m){
+  const c=m.colors.find(x=>x.key===UI.pickColor)||m.colors[0],Q=UI.qtys||{},pr=c.min;
+  const total=Object.values(Q).reduce((a,b)=>a+b,0),amount=Object.entries(Q).reduce((a,[id,n])=>a+n*num((S.products.find(p=>p.id===id)||{}).price),0);
+  const byColor=x=>x.rows.reduce((a,r)=>a+(Q[r.id]||0),0);
+  return `<div class="picker"><div class="row between" style="align-items:start"><div style="display:flex;gap:10px;min-width:0">${c.photo?`<img src="${esc(photoUrl(c.photo))}" alt="" class="pk-img">`:m.photo?`<img src="${esc(photoUrl(m.photo))}" alt="" class="pk-img">`:""}
+      <div style="min-width:0"><b>${esc(m.name)}</b><div class="small muted">${esc(c.color||"")}</div><div class="mprice ${c.priced?"":"none"}">${c.priced?money(pr)+(c.max>pr?" – "+money(c.max):""):"Sin precio"}</div></div></div>
       <button class="tiny ghost" data-act="pick-close" aria-label="Cerrar">✕</button></div>
-    ${sibs.length>1?`<div class="row" style="gap:6px">${sibs.map(x=>`<button class="chip" data-act="pick" data-k="${esc(x.key)}" aria-pressed="${x.key===g.key}"><i class="ed-sw" style="width:10px;height:10px;background:${swatch(x.color)}"></i> ${esc(x.color||"Único")}</button>`).join("")}</div>`:""}
-    ${g.priced?`<div class="small muted">Toca la talla para agregarla al ticket:</div>
-      <div class="sizes-pos">${g.rows.map(r=>{const s=g.sm[r.id]||0;return `<button class="szb ${s<=0?"zero":""}" data-act="add" data-k="${r.id}"><b>${esc(r.size||"Única")}</b><span>${Math.max(0,s)} pza${Math.max(0,s)===1?"":"s"}</span>${num(r.price)!==pr?`<span>${money(r.price)}</span>`:""}</button>`}).join("")}</div>`
-      :`<div class="banner" style="display:grid;gap:8px">Esta prenda aún no tiene precio. Ponlo aquí y se guarda para todas sus tallas:
-        <div class="row"><input id="pk-price" inputmode="decimal" placeholder="Precio $" style="max-width:130px"><input id="pk-cost" inputmode="decimal" placeholder="Costo $" style="max-width:130px"><button class="primary tiny" data-act="pk-save" data-k="${esc(g.key)}">Guardar</button></div></div>`}
+    ${m.colors.length>1?`<div class="row" style="gap:6px">${m.colors.map(x=>`<button class="chip" data-act="pick-color" data-k="${esc(x.key)}" aria-pressed="${x===c}"><i class="ed-sw" style="width:10px;height:10px;background:${swatch(x.color)}"></i> ${esc(x.color||"Único")}${byColor(x)?` <b>·${byColor(x)}</b>`:""}</button>`).join("")}</div>`:""}
+    ${!c.priced?`<div class="banner" style="display:grid;gap:8px">Este color aún no tiene precio. Ponlo aquí y se guarda para todas sus tallas:
+        <div class="row"><input id="pk-price" inputmode="decimal" placeholder="Precio $" style="max-width:130px"><input id="pk-cost" inputmode="decimal" placeholder="Costo $" style="max-width:130px"><button class="primary tiny" data-act="pk-save" data-k="${esc(c.key)}">Guardar</button></div></div>`
+    :UI.editStock?`<div class="small muted">Escribe las piezas que hay de cada talla (se guardan solas):</div>
+      <div class="stk">${c.rows.map((r,j)=>`<label class="stk-c"><span>${esc(r.size||"Única")}</span><input id="pk-st-${j}" data-ps="${esc(r.id)}" inputmode="numeric" value="${Math.max(0,c.sm[r.id]||0)}"></label>`).join("")}</div>
+      <button class="tiny" data-act="edit-stock" style="justify-self:start">Listo</button>`
+    :`<div class="small muted">¿Cuántas de cada talla?</div>
+      <div class="qgrid">${c.rows.map(r=>{const s=Math.max(0,c.sm[r.id]||0),n=Q[r.id]||0;return `<div class="qcell ${n?"on":""} ${s<=0?"zero":""}">
+        <button class="qsize" data-act="q-inc" data-k="${esc(r.id)}"><b>${esc(r.size||"Única")}</b><span>${s} pza${s===1?"":"s"}${num(r.price)!==pr?" · "+money(r.price):""}</span></button>
+        <div class="qstep"><button data-act="q-dec" data-k="${esc(r.id)}" aria-label="Una menos de talla ${esc(r.size)}" ${n?"":"disabled"}>−</button><b>${n}</b><button data-act="q-inc" data-k="${esc(r.id)}" aria-label="Una más de talla ${esc(r.size)}">+</button></div></div>`}).join("")}</div>
+      <div class="row between">${can("catalogo")?`<button class="tiny ghost" data-act="edit-stock">Editar piezas</button>`:"<span></span>"}<span class="small muted">${total?`${total} pza${total===1?"":"s"} elegidas`:""}</span></div>
+      <button class="primary paybtn" data-act="pick-add" ${total?"":"disabled"}>${total?`Agregar al ticket · ${total} pza${total===1?"":"s"} · ${money(amount)}`:"Elige las tallas"}</button>`}
   </div>`;
 }
 
@@ -646,7 +686,7 @@ function listSelect(id,kind,value){
   return `<select id="${id}"><option value="">Sin ${LISTS[kind].one}</option>${opts.map(o=>`<option ${o===value?"selected":""}>${esc(o)}</option>`).join("")}</select>`;
 }
 function listCard(kind){
-  const L=LISTS[kind],list=listOf(kind),admin=isAdmin(),count=n=>S.products.filter(p=>p.active!==false&&p[L.field]===n).length;
+  const L=LISTS[kind],list=listOf(kind),admin=can("catalogo"),count=n=>S.products.filter(p=>p.active!==false&&p[L.field]===n).length;
   const orphans=[...new Set(S.products.filter(p=>p.active!==false&&p[L.field]&&!list.includes(p[L.field])).map(p=>p[L.field]))];
   const row=(n,i)=>{const key=kind+"|"+i,c=count(n);
     if(UI.listRen===key)return `<div class="line" style="grid-template-columns:minmax(0,1fr) auto"><input id="rn-input" value="${esc(n)}" data-fresh="1"><div class="row" style="flex-wrap:nowrap"><button class="tiny primary" data-act="list-ren-save" data-k="${key}">Guardar</button><button class="tiny ghost" data-act="list-cancel">Cancelar</button></div></div>`;
@@ -667,7 +707,7 @@ function archivedSection(){
   return `<div class="card" style="display:grid;gap:10px"><div class="row between"><h3>Prendas archivadas</h3><button class="tiny ghost" data-act="toggle-arch">${UI.showArch?"Ocultar":"Ver las "+arch.length}</button></div>
     <p class="small muted" style="margin:0">No aparecen en la caja ni en la página web, pero sus ventas siguen en los reportes.</p>
     ${UI.showArch?`<div class="tbl"><table><tbody>${arch.map(p=>`<tr><td><b>${esc(p.name)}</b> <span class="small muted">${esc([p.size,p.color].filter(Boolean).join(" · "))}</span></td>
-      <td><div class="row" style="flex-wrap:nowrap;justify-content:flex-end">${isAdmin()?`<button class="tiny" data-act="restore" data-k="${p.id}">Restaurar</button>${used.has(p.id)?`<span class="small muted" title="Tiene ventas o compras">Con historial</span>`:UI.confirm==="x"+p.id?`<button class="tiny danger" data-act="purge" data-k="${p.id}">Eliminar para siempre</button><button class="tiny ghost" data-act="no">No</button>`:`<button class="tiny ghost danger" data-act="ask" data-k="x${p.id}">Eliminar</button>`}`:""}</div></td></tr>`).join("")}</tbody></table></div>`:""}</div>`;
+      <td><div class="row" style="flex-wrap:nowrap;justify-content:flex-end">${can("archivar")?`<button class="tiny" data-act="restore" data-k="${p.id}">Restaurar</button>${used.has(p.id)?`<span class="small muted" title="Tiene ventas o compras">Con historial</span>`:UI.confirm==="x"+p.id?`<button class="tiny danger" data-act="purge" data-k="${p.id}">Eliminar para siempre</button><button class="tiny ghost" data-act="no">No</button>`:`<button class="tiny ghost danger" data-act="ask" data-k="x${p.id}">Eliminar</button>`}`:""}</div></td></tr>`).join("")}</tbody></table></div>`:""}</div>`;
 }
 async function listOp(body){try{await api("POST","/api/listas",body);UI.listRen=UI.listDel=null;await load();return true}catch(e){toast(e.message);return false}}
 function vCatalogo(){
@@ -706,7 +746,7 @@ function vMovs(){
   return `<div><div class="eyebrow">Salidas de dinero y mercancía</div><h2>Gastos y compras</h2></div>
   <div class="chips">${[["gastos","Gastos del negocio"],["compras","Compras de mercancía"],["ajustes","Ajustes de inventario"]].map(([k,l])=>`<button class="chip" data-act="mov" data-k="${k}" aria-pressed="${sub===k}">${l}</button>`).join("")}</div>${form}${list}`;
 }
-function delBtn(p,id){if(!isAdmin())return "";return UI.confirm===p+id?`<div class="row" style="flex-wrap:nowrap"><button class="tiny danger" data-act="del" data-k="${p+id}">Borrar</button><button class="tiny ghost" data-act="no">No</button></div>`:`<button class="tiny ghost danger" data-act="ask" data-k="${p+id}">Borrar</button>`}
+function delBtn(p,id){if(!can("movs"))return "";return UI.confirm===p+id?`<div class="row" style="flex-wrap:nowrap"><button class="tiny danger" data-act="del" data-k="${p+id}">Borrar</button><button class="tiny ghost" data-act="no">No</button></div>`:`<button class="tiny ghost danger" data-act="ask" data-k="${p+id}">Borrar</button>`}
 function movList(type){
   const pn={};S.products.forEach(p=>pn[p.id]=p.name+(p.size?" ("+p.size+")":""));
   const rows=S.purchases.filter(p=>(p.type||"compra")===type).sort((a,b)=>b.ts-a.ts).slice(0,60);
@@ -837,13 +877,15 @@ function vAjustes(){
     <div style="align-self:end"><button class="primary" type="submit">Guardar ajustes</button></div>
   </form>
   <div class="card" style="display:grid;gap:12px"><div class="row between"><h3>Usuarios</h3><span class="small muted">Tú decides quién entra a la caja</span></div>
-    ${S.users?`<div class="tbl"><table><thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th><th></th></tr></thead><tbody>${S.users.map(u=>`<tr><td>${esc(u.name)}</td><td class="num">${esc(u.username)}</td><td>${u.role==="admin"?"Administrador":"Vendedor"}</td><td><span class="pill ${u.active?"good":""}">${u.active?"Activo":"Desactivado"}</span></td>
-      <td><div class="row" style="flex-wrap:nowrap">${UI.pwFor===u.id?`<input id="u-newpw" type="password" autocomplete="new-password" placeholder="Nueva contraseña" style="width:170px"><button class="tiny primary" data-act="save-pw" data-k="${u.id}">Guardar</button><button class="tiny ghost" data-act="pw-cancel">Cancelar</button>`:`<button class="tiny" data-act="pw" data-k="${u.id}">Cambiar contraseña</button>${u.id!==S.me.id?`<button class="tiny ghost ${u.active?"danger":""}" data-act="toggle-user" data-k="${u.id}">${u.active?"Desactivar":"Activar"}</button>`:""}`}</div></td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">Cargando usuarios…</p>`}
-    <form class="form" id="f-user"><label>Nombre<input id="u-name" required placeholder="Papá"></label><label>Usuario<input id="u-user" required autocomplete="off" placeholder="papa"></label>
+    ${S.users?`<div class="tbl"><table><thead><tr><th>Nombre</th><th>Usuario</th><th>Puesto y permisos</th><th>Estado</th><th></th></tr></thead><tbody>${S.users.map(u=>`<tr><td>${esc(u.name)}</td><td class="num">${esc(u.username)}</td>
+      <td>${UI.permFor===u.id?permEditor("pe",UI.peRole,UI.pePerms,u.id===S.me.id):`<b>${ROLES[u.role]||u.role}</b><div class="small muted">${u.role==="admin"?"Todo":u.perms.length?u.perms.map(p=>PERM_LABEL[p]).join(" · "):"Sin permisos"}</div>`}</td>
+      <td><span class="pill ${u.active?"good":""}">${u.active?"Activo":"Desactivado"}</span></td>
+      <td><div class="row" style="flex-wrap:wrap;gap:6px">${UI.permFor===u.id?`<button class="tiny primary" data-act="save-perm" data-k="${u.id}">Guardar permisos</button><button class="tiny ghost" data-act="perm-cancel">Cancelar</button>`:UI.pwFor===u.id?`<input id="u-newpw" type="password" autocomplete="new-password" placeholder="Nueva contraseña" style="width:170px"><button class="tiny primary" data-act="save-pw" data-k="${u.id}">Guardar</button><button class="tiny ghost" data-act="pw-cancel">Cancelar</button>`:`<button class="tiny" data-act="perm" data-k="${u.id}">Permisos</button><button class="tiny" data-act="pw" data-k="${u.id}">Contraseña</button>${u.id!==S.me.id?`<button class="tiny ghost ${u.active?"danger":""}" data-act="toggle-user" data-k="${u.id}">${u.active?"Desactivar":"Activar"}</button>`:""}`}</div></td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">Cargando usuarios…</p>`}
+    <form class="form" id="f-user"><label>Nombre<input id="u-name" required placeholder="Mamá"></label><label>Usuario<input id="u-user" required autocomplete="off" placeholder="mama"></label>
       <label>Contraseña inicial<input id="u-pw" type="password" required autocomplete="new-password" minlength="8"></label>
-      <label>Rol<select id="u-role"><option value="vendedor">Vendedor (vende y registra)</option><option value="admin">Administrador (todo)</option></select></label>
+      <div class="full">${permEditor("u",UI.newRole||"vendedor",UI.newPerms||rolePerms(UI.newRole||"vendedor"))}</div>
       <div style="align-self:end"><button type="submit">Crear usuario</button></div></form>
-    <p class="small muted" style="margin:0">El vendedor vende, da de alta productos, registra gastos y compras y ve los reportes. Solo el administrador borra registros, archiva productos, publica la página web y cambia estos ajustes.</p>
+    <p class="small muted" style="margin:0">Elige un puesto y, si quieres, quita o agrega casillas. El administrador puede todo, incluidos usuarios, ajustes, respaldo y cancelar ventas. Los cambios aplican la próxima vez que la caja de esa persona se actualice (unos segundos).</p>
   </div>
   <div class="grid g2">
   <div class="card" style="display:grid;gap:10px"><h3>Datos de ejemplo</h3>${ex?`<p class="muted" style="margin:0">Hay ${ex} registros de ejemplo. Bórralos antes de capturar ventas reales.</p>${UI.confirm==="examples"?`<div class="row"><button class="danger" data-act="del-examples">Sí, borrar ejemplos</button><button class="ghost" data-act="no">Cancelar</button></div>`:`<div><button class="danger" data-act="ask" data-k="examples">Borrar datos de ejemplo</button></div>`}`:`<p class="muted" style="margin:0">No hay datos de ejemplo. Todo lo que ves es real.</p>`}</div>
@@ -851,7 +893,14 @@ function vAjustes(){
   </div>`;
 }
 
-async function loadUsers(){S.users=[];try{S.users=await api("GET","/api/usuarios")}catch(e){toast(e.message)}schedule()}
+async function loadUsers(){S.users=[];try{const r=await api("GET","/api/usuarios");S.users=r.users;S.roles=r.roles}catch(e){toast(e.message)}schedule()}
+const rolePerms=r=>((S.roles||{})[r]||[]).filter(p=>p!=="admin");
+// Selector de puesto + casillas. p = prefijo de los ids (u = usuario nuevo, pe = editar uno existente).
+function permEditor(p,role,perms,self){
+  return `<div style="display:grid;gap:8px"><label style="max-width:440px">Puesto<select id="${p}-role" data-role-for="${p}" ${self?"disabled":""}>${Object.keys(ROLES).map(r=>`<option value="${r}" ${r===role?"selected":""}>${ROLES[r]} (${ROLE_HINT[r]})</option>`).join("")}</select></label>
+  ${role==="admin"?`<p class="small muted" style="margin:0">El administrador tiene todos los permisos.</p>`:`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:4px 14px">${Object.keys(PERM_LABEL).map(k=>`<label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" style="width:auto" data-perm-for="${p}" value="${k}" ${perms.includes(k)?"checked":""}> ${PERM_LABEL[k]}</label>`).join("")}</div>`}</div>`;
+}
+const permsFrom=p=>[...document.querySelectorAll(`[data-perm-for="${p}"]`)].filter(x=>x.checked).map(x=>x.value);
 
 function vLogin(){
   if(S.firstRun)return `<div class="login"><div>${logoSVG(56)}</div><div><div class="eyebrow">Primera vez</div><h2>Crear cuenta de administrador</h2></div>
@@ -905,7 +954,7 @@ function vConexiones(){
     <div class="card" style="display:grid;gap:10px"><div class="row between"><h3>Página web</h3><span class="pill ${withPhoto===ps.length&&ps.length?"good":"warn"}">${withPhoto}/${ps.length} con foto</span></div>
       ${web?`<p class="small" style="margin:0"><a href="${esc(web)}" target="_blank" rel="noopener">${esc(web)}</a></p>`:`<p class="small muted" style="margin:0">Falta poner la dirección de la página en Ajustes.</p>`}
       <p class="small muted" style="margin:0">Publicar sube a GitHub los productos activos con su foto, precio y tallas. Nunca sube costos, ventas ni finanzas.</p>
-      ${isAdmin()?`<div><button class="primary" data-act="publish" ${S.pub==="…"?"disabled":""}>${S.pub==="…"?"Publicando…":"Publicar página web"}</button></div>`:`<p class="small muted" style="margin:0">Solo el administrador publica.</p>`}
+      ${can("publicar")?`<div><button class="primary" data-act="publish" ${S.pub==="…"?"disabled":""}>${S.pub==="…"?"Publicando…":"Publicar página web"}</button></div>`:`<p class="small muted" style="margin:0">Solo el administrador publica.</p>`}
       ${S.pub&&S.pub!=="…"?`<div class="banner">${esc(S.pub)}</div>`:""}</div>
     <div class="card" style="display:grid;gap:10px"><h3>WhatsApp Business</h3>
       <ol class="small" style="margin:0;padding-left:18px;display:grid;gap:4px"><li>En WhatsApp Business → Herramientas → Perfil de empresa, pon el número en Ajustes de esta app y la página web en «Sitio web».</li>
@@ -985,7 +1034,7 @@ function edAskHTML(){
   return "";
 }
 function edFormHTML(d){
-  const admin=isAdmin(),cats=listOf("categories"),seas=listOf("seasons");
+  const admin=can("archivar"),cats=listOf("categories"),seas=listOf("seasons");
   const opt=(list,v)=>{const l=list.slice();if(v&&!l.includes(v))l.unshift(v);return `<option value="">—</option>`+l.map(o=>`<option ${o===v?"selected":""}>${esc(o)}</option>`).join("")};
   return `<section class="card ed-sec"><div class="row between"><h3>${d.isNew?"Nuevo modelo":"Datos del modelo"}</h3>${d.isNew?"":`<span class="small muted">Lo que cambies aquí se aplica a todos sus colores y tallas</span>`}</div>
     <div class="form"><label class="full">Nombre del modelo<input data-f="name" value="${esc(d.name)}" placeholder="Chamarra Casual Original Deluxe"></label>
@@ -1083,7 +1132,7 @@ async function edSave(after){
   ED.saving=true;edRender();
   try{
     await api("POST","/api/catalogo/guardar",{products,photos});
-    if(isAdmin()){for(const [kind,v] of [["categories",d.category],["seasons",d.season]])if(v&&!listOf(kind).includes(v))await api("POST","/api/listas",{kind,action:"add",name:v}).catch(()=>{})}
+    if(can("catalogo")){for(const [kind,v] of [["categories",d.category],["seasons",d.season]])if(v&&!listOf(kind).includes(v))await api("POST","/api/listas",{kind,action:"add",name:v}).catch(()=>{})}
     await load();ED.saving=false;ED.dirty=false;toast("Guardado. Publica la página web en Conexiones para que se vea en línea.");
     const key=modelKey({name:d.name.trim(),season:d.season});
     if(after==="close"){ED.open=false;edRender()}else if(after&&after.switchTo!==undefined)edSelect(after.switchTo);else edSelect(key);
@@ -1235,7 +1284,7 @@ async function designMany(list){
 
 /* --- pestaña --- */
 function vPublicidad(){
-  if(!isAdmin())return `<div class="empty">La publicidad solo la maneja el administrador.</div>`;
+  if(!can("publicidad"))return `<div class="empty">Tu usuario no tiene permiso para la publicidad.</div>`;
   if(!AG.st){agLoad();return `<div class="empty">Cargando el agente de publicidad…</div>`}
   const s=AG.st,c=s.cfg,posts=s.posts,now=Date.now(),count=st=>posts.filter(p=>p.status===st).length;
   const nets=Object.keys(NETS).filter(n=>s[n]),upcoming=posts.filter(p=>p.status!=="publicado"||p.scheduled_at>now-7*864e5);
@@ -1411,7 +1460,16 @@ document.addEventListener("click",async e=>{
       if(s<=0)toast("Ojo: no hay piezas registradas de la talla "+(p.size||"")+". Revisa el inventario.");else if((i?i.qty:0)>=s)toast("Ojo: solo hay "+s+" de la talla "+(p.size||""));else toast("Agregado: talla "+(p.size||"única"));
       const ph=p.photo?photoUrl(p):((S.products.find(x=>x.photo&&modelKey(x)===modelKey(p)&&(x.color||"")===(p.color||""))||{}).photo?photoUrl(S.products.find(x=>x.photo&&modelKey(x)===modelKey(p)&&(x.color||"")===(p.color||""))):"");
       i?i.qty++:UI.cart.push({pid:p.id,name:p.name,size:p.size||"",color:p.color||"",photo:ph,qty:1,price:num(p.price),cost:num(p.cost)});UI.flash=p.id;UI.cash="";render();setTimeout(()=>{UI.flash=null},900);break}
-    case "pick":UI.pick=UI.pick===k&&b.classList.contains("mcard")?null:k;render();break;
+    case "pick":{const same=UI.pick===k;UI.pick=same?null:k;UI.pickColor=null;UI.qtys={};UI.editStock=false;render();break}
+    case "pick-color":UI.pickColor=k;UI.editStock=false;render();break;
+    case "edit-stock":UI.editStock=!UI.editStock;render();break;
+    case "q-inc":case "q-dec":{const p=S.products.find(x=>x.id===k);if(!p)break;UI.qtys=UI.qtys||{};const n=Math.max(0,(UI.qtys[k]||0)+(a==="q-inc"?1:-1));
+      if(a==="q-inc"&&n>(stockMap()[k]||0))toast(`Ojo: solo hay ${Math.max(0,stockMap()[k]||0)} de la talla ${p.size||""}`);UI.qtys[k]=n;if(!n)delete UI.qtys[k];render();break}
+    case "pick-add":{const Q=UI.qtys||{};let added=0;
+      for(const [id,n] of Object.entries(Q)){const p=S.products.find(x=>x.id===id);if(!p||!(num(p.price)>0)||!n)continue;
+        const src=p.photo?p:S.products.find(x=>x.photo&&modelKey(x)===modelKey(p)&&(x.color||"")===(p.color||""));
+        const line=UI.cart.find(x=>x.pid===id);line?line.qty+=n:UI.cart.push({pid:p.id,name:p.name,size:p.size||"",color:p.color||"",photo:src?photoUrl(src):"",qty:n,price:num(p.price),cost:num(p.cost)});added+=n;UI.flash=id}
+      if(added)toast(`Agregadas ${added} pieza${added===1?"":"s"} al ticket`);UI.pick=null;UI.qtys={};UI.cash="";render();setTimeout(()=>{UI.flash=null},900);break}
     case "pick-close":UI.pick=null;render();break;
     case "go-cart":{const c=document.querySelector("aside.cart");if(c)c.scrollIntoView({behavior:"smooth",block:"start"});break}
     case "rm-line":UI.cart.splice(+k,1);render();break;
@@ -1471,7 +1529,11 @@ document.addEventListener("click",async e=>{
     case "logout":{try{await api("POST","/api/logout")}catch{}logout();break}
     case "del-photo":{try{await del("photos",k);toast("Foto quitada")}catch{}break}
     case "publish":{S.pub="…";render();try{const r=await api("POST","/api/publicar");S.pub=r.message}catch(e){S.pub=e.message}render();break}
-    case "pw":UI.pwFor=Number(k);render();break;
+    case "pw":UI.pwFor=Number(k);UI.permFor=null;render();break;
+    case "perm":{const u=(S.users||[]).find(x=>x.id===Number(k));if(!u)break;UI.permFor=u.id;UI.pwFor=null;UI.peRole=u.role;UI.pePerms=[...u.perms];lastKey="";render();break}
+    case "perm-cancel":UI.permFor=null;lastKey="";render();break;
+    case "save-perm":{const role=(document.getElementById("pe-role")||{}).value||UI.peRole;
+      try{await api("PUT","/api/usuarios/"+k,{role,perms:permsFrom("pe")});UI.permFor=null;lastKey="";toast("Permisos guardados");await loadUsers();if(Number(k)===S.me.id)await load()}catch(e){toast(e.message)}break}
     case "pw-cancel":UI.pwFor=null;render();break;
     case "save-pw":{const pw=$("#u-newpw").value;if(pw.length<8){toast("Mínimo 8 caracteres");break}
       try{await api("PUT","/api/usuarios/"+k,{password:pw});UI.pwFor=null;toast("Contraseña cambiada");render()}catch(e){toast(e.message)}break}
@@ -1480,6 +1542,14 @@ document.addEventListener("click",async e=>{
     case "close-ov":$("#overlay").hidden=true;break;
     case "copy-ov":copy($("#ov-text").value,$("#ov-text"));break;
   }
+});
+document.addEventListener("change",e=>{
+  const p=e.target.dataset&&e.target.dataset.roleFor;
+  if(p){const role=e.target.value;if(p==="u"){UI.newRole=role;UI.newPerms=rolePerms(role)}else{UI.peRole=role;UI.pePerms=rolePerms(role)}
+    // Redibuja solo las casillas del bloque, sin perder lo que ya se escribió en el formulario.
+    const box=e.target.closest("div");if(box){const tmp=document.createElement("div");tmp.innerHTML=permEditor(p,role,rolePerms(role));box.replaceWith(tmp.firstElementChild)}}
+  if(e.target.dataset&&e.target.dataset.permFor==="u")UI.newPerms=permsFrom("u");
+  if(e.target.dataset&&e.target.dataset.permFor==="pe")UI.pePerms=permsFrom("pe");
 });
 document.addEventListener("input",e=>{
   if(e.target.id==="pos-q"){UI.q=e.target.value;render()}
@@ -1507,7 +1577,7 @@ document.addEventListener("submit",async e=>{
     if(f.id==="f-cust"){
       try{await api("POST","/api/clientes",{name:v("c-name").trim(),phone:v("c-phone"),email:v("c-mail").trim()});f.reset();lastKey="";await load();toast("Cliente registrado")}catch(err){toast(err.message)}}
     if(f.id==="f-user"){
-      try{await api("POST","/api/usuarios",{name:v("u-name").trim(),username:v("u-user").trim(),password:v("u-pw"),role:v("u-role")});f.reset();toast("Usuario creado");await loadUsers()}catch(err){toast(err.message)}}
+      try{await api("POST","/api/usuarios",{name:v("u-name").trim(),username:v("u-user").trim(),password:v("u-pw"),role:v("u-role"),perms:permsFrom("u")});f.reset();UI.newRole=null;UI.newPerms=null;lastKey="";toast("Usuario creado");await loadUsers()}catch(err){toast(err.message)}}
     if(f.id==="f-prod"){const old=UI.editing==="new"?null:S.products.find(x=>x.id===UI.editing),id=old?old.id:uid();
       const data={...(old?strip(old):{}),name:v("p-name").trim(),sku:v("p-sku").trim(),category:v("p-cat").trim(),season:v("p-season").trim(),size:v("p-size").trim(),color:v("p-color").trim(),price:num(v("p-price")),cost:num(v("p-cost")),desc:v("p-desc").trim(),active:true};
       if(!old)data.stock0=Math.round(num(v("p-stock")));

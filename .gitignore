@@ -15,3 +15,6 @@ entrada/
 
 # Guía en PowerPoint para la familia (no se publica en GitHub)
 presentacion/
+
+# Bot de WhatsApp de Forja (tiene su propia configuración y llaves)
+bot-whatsapp/

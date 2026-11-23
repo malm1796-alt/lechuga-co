@@ -16,8 +16,8 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY, username TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('admin','vendedor')),
-  salt TEXT NOT NULL, hash TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL);
+  role TEXT NOT NULL CHECK (role IN ('admin','encargado','vendedor','consulta')),
+  salt TEXT NOT NULL, hash TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, perms TEXT);
 CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), expires INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS products (
   id TEXT PRIMARY KEY, sku TEXT, name TEXT NOT NULL, category TEXT, season TEXT, size TEXT, color TEXT,
@@ -49,6 +49,35 @@ CREATE INDEX IF NOT EXISTS idx_sales_ts ON sales(ts);
 // Las fotos guardan su formato original (jpg, png o webp); las bases creadas antes solo tenían jpg.
 if (!db.prepare("PRAGMA table_info(photos)").all().some(c => c.name === "mime"))
   db.exec("ALTER TABLE photos ADD COLUMN mime TEXT NOT NULL DEFAULT 'image/jpeg'");
+// Puestos con permisos por casilla: la tabla vieja solo aceptaba admin/vendedor y no tenía columna de permisos.
+if (!db.prepare("PRAGMA table_info(users)").all().some(c => c.name === "perms")) {
+  db.exec(`PRAGMA foreign_keys = OFF; BEGIN;
+    CREATE TABLE users_new (
+      id INTEGER PRIMARY KEY, username TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('admin','encargado','vendedor','consulta')),
+      salt TEXT NOT NULL, hash TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, perms TEXT);
+    INSERT INTO users_new(id, username, name, role, salt, hash, active, created_at) SELECT id, username, name, role, salt, hash, active, created_at FROM users;
+    DROP TABLE users; ALTER TABLE users_new RENAME TO users;
+    COMMIT; PRAGMA foreign_keys = ON;`);
+}
+// Lo que puede hacer cada quien. «admin» = usuarios, ajustes del negocio, respaldo y cancelar ventas.
+const PERMS = ["vender", "clientes", "catalogo", "archivar", "movs", "finanzas", "publicar", "publicidad", "admin"];
+const ROLE_PERMS = {
+  admin: PERMS,
+  encargado: ["vender", "clientes", "catalogo", "movs", "finanzas", "publicar"],
+  vendedor: ["vender", "clientes"],
+  consulta: ["finanzas"],
+  // Los vendedores creados antes de los permisos conservan lo que ya podían hacer hasta que el administrador los cambie.
+  legacyVendedor: ["vender", "clientes", "catalogo", "movs", "finanzas"],
+};
+function permsOf(u) {
+  if (!u) return [];
+  if (u.role === "admin") return [...PERMS];
+  let list = null;
+  try { list = u.perms ? JSON.parse(u.perms) : null; } catch {}
+  if (!Array.isArray(list)) list = u.role === "vendedor" ? ROLE_PERMS.legacyVendedor : ROLE_PERMS[u.role] || [];
+  return PERMS.filter(p => p !== "admin" && list.includes(p));
+}
 const PHOTO_EXT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 // Qué promoción usó cada venta (vacío = ninguna); la de primera compra se valida contra el teléfono del cliente.
 if (!db.prepare("PRAGMA table_info(sales)").all().some(c => c.name === "promo"))
@@ -84,10 +113,10 @@ function checkPassword(password, salt, hash) {
   const h = Buffer.from(hashPassword(password, salt).hash, "hex");
   return crypto.timingSafeEqual(h, Buffer.from(hash, "hex"));
 }
-function createUser({ username, name, role, password }) {
+function createUser({ username, name, role, password, perms }) {
   const { salt, hash } = hashPassword(password);
-  db.prepare("INSERT INTO users(username, name, role, salt, hash, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .run(username.trim().toLowerCase(), name.trim(), role, salt, hash, Date.now());
+  db.prepare("INSERT INTO users(username, name, role, salt, hash, created_at, perms) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .run(username.trim().toLowerCase(), name.trim(), role, salt, hash, Date.now(), perms ? JSON.stringify(perms) : null);
 }
 
-module.exports = { db, ROOT, DATA, getSettings, saveSettings, hashPassword, checkPassword, createUser, DEFAULT_SETTINGS, PHOTO_EXT, phoneKey };
+module.exports = { db, ROOT, DATA, getSettings, saveSettings, hashPassword, checkPassword, createUser, DEFAULT_SETTINGS, PHOTO_EXT, phoneKey, PERMS, ROLE_PERMS, permsOf };
