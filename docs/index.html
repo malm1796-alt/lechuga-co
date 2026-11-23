@@ -202,7 +202,8 @@ function groups(){
     c.sizes.push({id:it.id,size:it.size||"Única",stock:it.stock,desc:it.desc});c.stock+=it.stock;m.stock+=it.stock;
     if(!c.photo&&it.photo)c.photo=it.photo;m.price=Math.min(m.price,it.price);
   }
-  return [...g.values()].map(m=>{m.colors=m.colors.filter(c=>c.stock>0);m.photo=(m.colors.find(c=>c.photo)||{}).photo||"";return m}).filter(m=>m.stock>0);
+  // Las prendas sin piezas también se muestran (con foto y precio) para preguntar disponibilidad por WhatsApp.
+  return [...g.values()].map(m=>{m.colors.sort((a,b)=>(b.stock>0)-(a.stock>0));m.photo=(m.colors.find(c=>c.photo)||{}).photo||"";return m}).sort((a,b)=>(b.stock>0)-(a.stock>0));
 }
 const colorOf=m=>m.colors.find(c=>c.color===U.color)||m.colors[0];
 const pic=(m,alt=true)=>m.photo?`<img src="${esc(m.photo)}" alt="${alt?esc(m.name+(m.color?", "+m.color:"")):""}" loading="lazy">`:`<div class="noimg">${MTN}<span>${esc(m.name)}</span></div>`;
@@ -253,7 +254,7 @@ function render(){
       return `<a class="cat" href="#coleccion" data-act="cat" data-k="${esc(c)}">${src?`<img src="${esc(src)}" alt="" loading="lazy">`:`<div class="noph">${MTN}</div>`}<span class="t"><span><b>${esc(c)}</b><span>${esc(CAT_SUB[norm(c)]||"Ver colección")}</span></span><span aria-hidden="true">→</span></span></a>`}).join("")}</div></section>`:""}
     <section class="sect" id="coleccion"><div class="sect-h"><h2>${esc(U.cat||"Colección "+featured)}</h2></div>
       ${seasons.length>1?`<div class="filters"><button class="chip" data-act="season" data-k="" aria-pressed="${!U.season}">Todas</button>${seasons.map(s=>`<button class="chip" data-act="season" data-k="${esc(s)}" aria-pressed="${U.season===s}">${esc(s)}</button>`).join("")}${U.cat?`<button class="chip" data-act="cat" data-k="">Quitar filtro: ${esc(U.cat)} ✕</button>`:""}</div>`:U.cat?`<div class="filters"><button class="chip" data-act="cat" data-k="">Quitar filtro: ${esc(U.cat)} ✕</button></div>`:""}
-      ${list.length?`<div class="grid">${list.map(m=>`<button class="card" id="p-${esc(m.colors[0].sizes[0].id)}" data-act="open" data-k="${m.key}"><div class="ph">${pic(m)}</div>${m.stock<=2?'<span class="flag">Últimas piezas</span>':""}
+      ${list.length?`<div class="grid">${list.map(m=>`<button class="card" id="p-${esc(m.colors[0].sizes[0].id)}" data-act="open" data-k="${m.key}"><div class="ph">${pic(m)}</div>${m.stock<=0?'<span class="flag">Pregunta disponibilidad</span>':m.stock<=2?'<span class="flag">Últimas piezas</span>':""}
         <div class="info"><span class="n">${esc(m.name)}</span><span class="note">${m.colors.length>1?m.colors.length+" colores":esc(m.colors[0].color||"")}</span><span class="p">${money(m.price)}</span>${m.colors.length>1?`<span class="dots">${m.colors.map(x=>`<i style="background:${COLORS[norm(x.color)]||"#ddd"}" title="${esc(x.color)}"></i>`).join("")}</span>`:""}</div></button>`).join("")}</div>`
         :`<div class="empty lab">${C.items.length?"No hay piezas que coincidan.":"La colección llega muy pronto."}</div>`}</section>
     <section class="sect" id="nosotros"><div class="sect-h"><h2>Nosotros</h2></div><div class="about"><img src="marca/sello.png" alt="Lechuga &amp; Co., desde 1990, American Clothing">
@@ -263,7 +264,7 @@ function render(){
     <section class="sect" id="contacto"><div class="sect-h"><h2>Contacto</h2></div><div class="contact">
       <div><b>WhatsApp</b>${st.phone?`<span style="user-select:all">${esc(st.phone)}</span><a class="btn wa" style="justify-self:start;margin-top:6px" href="${esc(wa(`Hola ${st.name} 👋 Tengo una pregunta.`))}" target="_blank" rel="noopener">Escríbenos</a>`:'<span class="note">Pronto publicaremos nuestro número.</span>'}</div>
       <div><b>Empresas</b><span class="note">Uniformes y pedidos por caja para empresas e industria. Pide tu cotización por WhatsApp.</span></div>
-      <div><b>Dónde estamos</b><span class="note">${esc(st.city||"México")}. Envíos a todo el país.</span></div></div></section>
+      <div><b>Dónde estamos</b><span class="note">${esc(st.city||"México")}. Envío a domicilio en la ciudad de Chihuahua.</span></div></div></section>
   </main>
   <footer><div class="wrap"><div><a class="brand" href="#inicio">${MTN}<span><strong>LECHUGA &amp; CO.</strong><small>ROPA · CHAMARRAS · SUDADERAS</small></span></a><p style="margin-top:14px">Ropa y básicos de temporada desde 1990.<br>${esc(st.city||"")}</p></div>
     <div><h4>Explora</h4><a href="#coleccion">Colección ${esc(featured)}</a><br>${pr?'<a href="#promocion">Promociones</a><br>':""}<a href="#nosotros">Nosotros</a></div>
@@ -282,10 +283,12 @@ function sheetHTML(all){
     <div class="ph" style="border-radius:6px">${pic({photo:col.photo||m.photo,name:m.name,color:col.color})}</div>
     <div style="display:grid;gap:6px"><div class="lab" style="color:var(--gold-dk)">${esc(m.season||"")}</div><h2>${esc(m.name)}</h2><div class="price">${money(it?it.price:m.price)}</div></div>
     ${m.colors.length>1||col.color?`<div style="display:grid;gap:8px"><div class="lab">Color: <span style="font-weight:600;letter-spacing:.05em;text-transform:none">${esc(col.color||"")}</span></div><div class="sizes">${m.colors.map(c=>`<button class="size" data-act="color" data-k="${esc(c.color)}" aria-pressed="${c===col}" style="display:flex;gap:8px;align-items:center"><i style="width:14px;height:14px;border-radius:50%;border:1px solid #c9c4b8;background:${COLORS[norm(c.color)]||"#ddd"}"></i>${esc(c.color)}</button>`).join("")}</div></div>`:""}
-    <div style="display:grid;gap:8px"><div class="lab">Elige tu talla</div><div class="sizes">${col.sizes.map(s=>`<button class="size" data-act="size" data-k="${esc(s.id)}" aria-pressed="${U.size===s.id}" ${s.stock<=0?"disabled":""}>${esc(s.size)}</button>`).join("")}</div>
-      ${sel&&measureOf(sel.desc)?`<div class="note">Medidas talla ${esc(sel.size)}: ${esc(measureOf(sel.desc))}</div>`:""}${sel&&sel.stock<=2?`<div class="note">Quedan pocas piezas en esta talla.</div>`:""}</div>
-    <button class="btn dark" data-act="add" ${sel?"":"disabled"}>${sel?"Añadir a la cesta":"Selecciona una talla"}</button>
-    ${ask?`<a class="btn wa" href="${esc(ask)}" target="_blank" rel="noopener">Preguntar por WhatsApp</a>`:""}
+    <div style="display:grid;gap:8px"><div class="lab">Elige tu talla</div><div class="sizes">${col.sizes.map(s=>`<button class="size" data-act="size" data-k="${esc(s.id)}" aria-pressed="${U.size===s.id}" ${s.stock<=0&&col.stock>0?"disabled":""}>${esc(s.size)}</button>`).join("")}</div>
+      ${sel&&measureOf(sel.desc)?`<div class="note">Medidas talla ${esc(sel.size)}: ${esc(measureOf(sel.desc))}</div>`:""}${col.stock>0&&sel&&sel.stock<=2?`<div class="note">Quedan pocas piezas en esta talla.</div>`:""}</div>
+    ${col.stock>0?`<button class="btn dark" data-act="add" ${sel?"":"disabled"}>${sel?"Añadir a la cesta":"Selecciona una talla"}</button>
+    ${ask?`<a class="btn wa" href="${esc(ask)}" target="_blank" rel="noopener">Preguntar por WhatsApp</a>`:""}`
+    :`<div class="note">Estamos surtiendo este color. Elige tu talla y pregúntanos por WhatsApp: te confirmamos disponibilidad al momento.</div>
+    ${ask?`<a class="btn wa" href="${esc(ask)}" target="_blank" rel="noopener">Pregunta disponibilidad por WhatsApp</a>`:""}`}
     ${specs.length?`<div style="display:grid;gap:6px"><div class="lab">Características</div><ul class="specs">${specs.map(s=>`<li>${esc(s)}</li>`).join("")}</ul></div>`:""}</aside>`;
 }
 function bagHTML(){
@@ -339,7 +342,7 @@ document.addEventListener("click",e=>{
   else if(a==="color"){U.color=k;U.size=null}
   else if(a==="close"){U.open=null}
   else if(a==="size"){U.size=k}
-  else if(a==="add"){const it=C.items.find(i=>i.id===U.size);if(!it)return;const m=groups().find(x=>x.key===U.open),col=m&&colorOf(m);
+  else if(a==="add"){const it=C.items.find(i=>i.id===U.size);if(!it||it.stock<=0)return;const m=groups().find(x=>x.key===U.open),col=m&&colorOf(m);
     const ex=U.bag.find(x=>x.id===it.id);ex?ex.qty++:U.bag.push({id:it.id,qty:1,name:it.name,color:it.color,size:it.size||"Única",price:it.price,photo:(col&&col.photo)||(m&&m.photo)||""});
     saveBag();U.open=null;U.showBag=true}
   else if(a==="bag"){U.showBag=true}
