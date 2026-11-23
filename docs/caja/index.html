@@ -303,6 +303,9 @@ const DRAW="Retiro del dueño";
 const LISTS={categories:{one:"categoría",many:"Categorías",field:"category",ph:"Ej. Pijamas"},seasons:{one:"temporada",many:"Temporadas",field:"season",ph:"Ej. Primavera-Verano 2028"}};
 const listOf=kind=>S.settings[kind]||[];
 const METHODS=["Efectivo","Tarjeta","Transferencia"];
+// Cómo se ve cada forma de pago en los botones (en los reportes se guarda el nombre corto).
+const METHOD_LABEL={Tarjeta:"Tarjeta (Clip)"};
+const clabeFmt=c=>String(c||"").replace(/(\d{3})(\d{3})(\d{11})(\d)/,"$1 $2 $3 $4");
 const BRAND={night:"#101923",gold:"#d5a64b",grey:"#b9bcc0",white:"#ffffff"};
 const NO_SEASON="Sin temporada";
 const DEFAULTS={name:"Lechuga & Co.",tagline:"Ropa fresca de temporada",phone:"",address:"",currency:"MXN",openingCash:0,fixedAssets:0,liabilities:0};
@@ -457,6 +460,18 @@ function offerFile(filename,data){
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);toast("Descargando "+filename);
 }
 function showText(title,text){const o=$("#overlay");o.innerHTML=`<div class="card"><div class="row between"><h3>${esc(title)}</h3><button data-act="close-ov">Cerrar</button></div><p class="small muted">Copia este texto y guárdalo como archivo .csv.</p><textarea id="ov-text" rows="14" readonly>${esc(text)}</textarea><div><button class="primary" data-act="copy-ov">Copiar</button></div></div>`;o.hidden=false}
+// Datos de transferencia para enseñar o mandar al cliente al cobrar.
+function transferBox(tot){
+  const t=S.settings.transfer||{};
+  if(!t.clabe)return `<div class="banner">Aún no hay datos para transferencia.${isAdmin()?' Captúralos en <a href="#" data-act="tab" data-k="ajustes">Ajustes</a>.':" Pídele al administrador que los capture en Ajustes."}</div>`;
+  const msg=`Datos para tu transferencia a ${S.settings.name}:\nBanco: ${t.banco}\nTitular: ${t.titular}\nCLABE: ${t.clabe}\nMonto: ${money(tot)}\n\nPor favor mándanos foto del comprobante. ¡Gracias!`;
+  const tel=String(UI.phone||"").replace(/\D/g,"").slice(-10);
+  return `<div class="cashbox" style="display:grid;gap:6px"><div class="small muted">Enséñale esto al cliente o mándaselo</div>
+    <div><b>${esc(t.banco)}</b> · ${esc(t.titular)}</div><div style="font-size:1.35rem;font-weight:700;letter-spacing:.04em">${esc(clabeFmt(t.clabe))}</div><div>Monto: <b>${money(tot)}</b></div>
+    <div class="row" style="gap:6px;flex-wrap:wrap"><button class="tiny" data-act="copy-clabe">Copiar CLABE</button><button class="tiny" data-act="copy-transfer">Copiar todo</button>
+    ${tel.length===10?`<a class="tiny btn" style="text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/52${tel}?text=${encodeURIComponent(msg)}">Mandar por WhatsApp</a>`:`<span class="small muted">Escribe el WhatsApp del cliente abajo para mandárselo.</span>`}</div>
+    <div class="small muted">Registra la venta cuando veas el dinero en la cuenta.</div></div>`;
+}
 async function copy(text,el){try{await navigator.clipboard.writeText(text);toast("Copiado")}catch{if(el){el.focus();el.select()}toast("Selecciona el texto y cópialo")}}
 const csvCell=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
 const toCSV=rows=>rows.map(r=>r.map(csvCell).join(",")).join("\n");
@@ -614,7 +629,9 @@ function vVender(){
           <div class="qty"><button class="tiny" data-act="dec" data-k="${ix}" aria-label="Quitar uno">−</button><span class="num">${i.qty}</span><button class="tiny" data-act="inc" data-k="${ix}" aria-label="Agregar uno">+</button></div></div>
         <div style="display:grid;justify-items:end;gap:6px"><b class="num">${money(i.qty*i.price)}</b><button class="tiny ghost danger" data-act="rm-line" data-k="${ix}" aria-label="Quitar del ticket">✕</button></div></div>`).join("")}</div>`
       :`<div class="empty" style="padding:18px">Toca un modelo, elige color y cuántas piezas de cada talla.</div>`}
-    <div class="seg" role="group" aria-label="Forma de pago">${METHODS.map(m=>`<button data-act="method" data-k="${m}" aria-pressed="${method===m}">${m}</button>`).join("")}</div>
+    <div class="seg" role="group" aria-label="Forma de pago">${METHODS.map(m=>`<button data-act="method" data-k="${m}" aria-pressed="${method===m}">${METHOD_LABEL[m]||m}</button>`).join("")}</div>
+    ${method==="Transferencia"&&UI.cart.length?transferBox(tot):""}
+    ${method==="Tarjeta"&&UI.cart.length?`<div class="note small muted">Cobra ${money(tot)} en la terminal Clip y registra la venta cuando salga aprobado.</div>`:""}
     ${method==="Efectivo"&&UI.cart.length?`<div class="cashbox"><label>Recibe<input id="pos-cash" inputmode="decimal" placeholder="$" value="${esc(UI.cash||"")}" data-fresh="1"></label>
       <div class="row" style="gap:6px"><button class="tiny" data-act="cash" data-k="${tot}">Exacto</button>${QUICK_CASH.filter(v=>v>=tot).slice(0,3).map(v=>`<button class="tiny" data-act="cash" data-k="${v}">${money(v)}</button>`).join("")}</div>
       ${cash?`<div class="pos-change ${cash<tot?"short":""}"><span>${cash<tot?"Faltan":"Cambio"}</span><b>${money(Math.abs(cash-tot))}</b></div>`:""}</div>`:""}
@@ -861,6 +878,10 @@ function vAjustes(){
     <label>Deudas (proveedores, préstamos)<input id="s-liab" inputmode="decimal" value="${st.liabilities||""}" placeholder="0"></label>
     <label class="full">Dirección de la página web (GitHub Pages)<input id="s-url" value="${esc(st.storeUrl)}" placeholder="https://tu-usuario.github.io/lechuga-co/"></label>
     <label>Ciudad (pie de la página web)<input id="s-city" value="${esc(st.city||"")}"></label>
+    <p class="full small muted" style="margin:0"><b>Datos para transferencia</b>: la caja los enseña al cobrar con "Transferencia" y deja mandarlos por WhatsApp al cliente. No se publican en la página web.</p>
+    <label>Banco<input id="s-tr-banco" value="${esc((st.transfer||{}).banco||"")}" placeholder="Ej. BBVA"></label>
+    <label>Titular de la cuenta<input id="s-tr-tit" value="${esc((st.transfer||{}).titular||"")}"></label>
+    <label>CLABE (18 dígitos)<input id="s-tr-clabe" inputmode="numeric" maxlength="22" value="${esc((st.transfer||{}).clabe||"")}"></label>
     <p class="full small muted" style="margin:0"><b>Promoción de primera compra</b>: un solo descuento por cliente registrado, en su primera compra.</p>
     <label style="display:flex;gap:8px;align-items:center;align-self:end"><input id="s-pr-on" type="checkbox" style="width:auto" ${(st.promo||{}).active?"checked":""}> Promoción activa</label>
     <label>Nombre de la promoción<input id="s-pr-title" value="${esc((st.promo||{}).title||"")}"></label>
@@ -1474,6 +1495,8 @@ document.addEventListener("click",async e=>{
     case "go-cart":{const c=document.querySelector("aside.cart");if(c)c.scrollIntoView({behavior:"smooth",block:"start"});break}
     case "rm-line":UI.cart.splice(+k,1);render();break;
     case "method":UI.method=k;render();break;
+    case "copy-clabe":copy((S.settings.transfer||{}).clabe||"");break;
+    case "copy-transfer":{const t=S.settings.transfer||{};copy(`Banco: ${t.banco}\nTitular: ${t.titular}\nCLABE: ${t.clabe}`);break}
     case "channel":UI.channel=k;render();break;
     case "cash":UI.cash=k;render();break;
     case "show-disc":UI.showDisc=true;render();break;
@@ -1591,7 +1614,7 @@ document.addEventListener("submit",async e=>{
       await put("purchases",uid(),{type:"compra",ts:dateTs("b-date"),pid:p.id,qty:q,unitCost:c,total:q*c,supplier:v("b-sup").trim(),method:v("b-met")});lastKey="";toast("Compra registrada: +"+q+" pzas");}
     if(f.id==="f-adj"){const p=S.products.find(x=>x.id===v("a-pid")),q=Math.round(num(v("a-qty")));if(!p||!q){toast("Escribe cuántas piezas (+ o −)");return}
       await put("purchases",uid(),{type:"ajuste",ts:Date.now(),pid:p.id,qty:q,unitCost:num(p.cost),total:q*num(p.cost),reason:v("a-why").trim()});lastKey="";toast("Ajuste registrado");}
-    if(f.id==="f-set"){await put("config","business",{...S.settings,name:v("s-name").trim()||DEFAULTS.name,tagline:v("s-tag").trim(),phone:v("s-phone").trim(),currency:v("s-cur"),openingCash:num(v("s-cash")),fixedAssets:num(v("s-fa")),liabilities:num(v("s-liab")),storeUrl:v("s-url").trim(),city:v("s-city").trim(),
+    if(f.id==="f-set"){await put("config","business",{...S.settings,name:v("s-name").trim()||DEFAULTS.name,tagline:v("s-tag").trim(),phone:v("s-phone").trim(),currency:v("s-cur"),openingCash:num(v("s-cash")),fixedAssets:num(v("s-fa")),liabilities:num(v("s-liab")),storeUrl:v("s-url").trim(),city:v("s-city").trim(),transfer:{banco:v("s-tr-banco").trim(),titular:v("s-tr-tit").trim(),clabe:v("s-tr-clabe").replace(/\D/g,"")},
       promo:{active:$("#s-pr-on").checked,title:v("s-pr-title").trim(),percent:num(v("s-pr-pct")),minimum:num(v("s-pr-min")),end:v("s-pr-end")},
       sale:{active:$("#s-sl-on").checked,title:v("s-sl-title").trim(),percent:num(v("s-sl-pct")),minimum:num(v("s-sl-min")),start:v("s-sl-start"),end:v("s-sl-end")}});lastKey="";toast("Ajustes guardados. Publica la página web para que la promoción se actualice ahí.");}
   }catch{}finally{if(btn)btn.disabled=false;schedule()}

@@ -463,9 +463,16 @@ async function route(req, res) {
   if (m === "PUT" && p === "/api/ajustes") {
     if (!needAdmin()) return;
     const cur = getSettings();
+    // Datos para recibir transferencias: los captura el administrador; la caja los muestra al cobrar.
+    let transfer = cur.transfer || { banco: "", titular: "", clabe: "" };
+    if (b.transfer) {
+      const clabe = String(b.transfer.clabe || "").replace(/\D/g, "");
+      if (clabe && clabe.length !== 18) return fail(res, 400, "La CLABE debe tener 18 dígitos");
+      transfer = { banco: str(b.transfer.banco, 40), titular: str(b.transfer.titular, 80), clabe };
+    }
     saveSettings({ ...cur, name: str(b.name, 80) || cur.name, tagline: str(b.tagline, 120), phone: str(b.phone, 30), currency: str(b.currency, 3) || "MXN",
       openingCash: num(b.openingCash), fixedAssets: num(b.fixedAssets), liabilities: num(b.liabilities), storeUrl: str(b.storeUrl, 300),
-      city: str(b.city, 80) || cur.city,
+      city: str(b.city, 80) || cur.city, transfer,
       promo: b.promo ? { active: !!b.promo.active, title: str(b.promo.title, 60) || "Compra anticipada", percent: Math.max(0, Math.min(80, num(b.promo.percent))),
         minimum: Math.max(0, num(b.promo.minimum)), end: /^\d{4}-\d{2}-\d{2}$/.test(b.promo.end || "") ? b.promo.end : "" } : cur.promo,
       sale: b.sale ? { active: !!b.sale.active, title: str(b.sale.title, 60) || "Descuento", percent: Math.max(0, Math.min(80, num(b.sale.percent))), minimum: Math.max(0, num(b.sale.minimum)),
