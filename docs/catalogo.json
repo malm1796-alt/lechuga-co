@@ -1,5 +1,5 @@
 {
- "publishedAt": 1795409835910,
+ "publishedAt": 1795413567131,
  "settings": {
   "name": "Lechuga & Co.",
   "tagline": "American Clothing desde 1990",
@@ -49,7 +49,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "S",
    "color": "Cuadros negro y blanco",
-   "price": 450,
+   "price": 350,
    "desc": "Tela suave y ligera · Diseño clásico y versátil · Cuello clásico · Dos bolsillos frontales con solapa y botón · Puño con botón",
    "photo": "fotos/8e2a382cb05b18d7.jpg",
    "stock": 0
@@ -61,7 +61,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "M",
    "color": "Cuadros negro y blanco",
-   "price": 450,
+   "price": 350,
    "desc": "Tela suave y ligera · Diseño clásico y versátil · Cuello clásico · Dos bolsillos frontales con solapa y botón · Puño con botón",
    "photo": "fotos/8e2a382cb05b18d7.jpg",
    "stock": 0
@@ -73,10 +73,10 @@
    "season": "Otoño-Invierno 2026",
    "size": "L",
    "color": "Cuadros negro y blanco",
-   "price": 450,
+   "price": 350,
    "desc": "Tela suave y ligera · Diseño clásico y versátil · Cuello clásico · Dos bolsillos frontales con solapa y botón · Puño con botón",
    "photo": "fotos/8e2a382cb05b18d7.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "camisa-de-franela-ligera-cuadros-negro-y-blanco-xl",
@@ -85,7 +85,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "XL",
    "color": "Cuadros negro y blanco",
-   "price": 450,
+   "price": 350,
    "desc": "Tela suave y ligera · Diseño clásico y versátil · Cuello clásico · Dos bolsillos frontales con solapa y botón · Puño con botón",
    "photo": "fotos/8e2a382cb05b18d7.jpg",
    "stock": 0
@@ -97,7 +97,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "S",
    "color": "Negro",
-   "price": 800,
+   "price": 650,
    "desc": "Ligera y abrigadora · Diseño acolchado · Capucha integrada con interior afelpado · Forro interior suave y térmico · Cierre frontal de alta calidad · Bolsillos laterales con cierre · Puños elásticos",
    "photo": "fotos/3bf05661ebfbfa32.jpg",
    "stock": 0
@@ -109,7 +109,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "M",
    "color": "Negro",
-   "price": 800,
+   "price": 650,
    "desc": "Ligera y abrigadora · Diseño acolchado · Capucha integrada con interior afelpado · Forro interior suave y térmico · Cierre frontal de alta calidad · Bolsillos laterales con cierre · Puños elásticos",
    "photo": "fotos/3bf05661ebfbfa32.jpg",
    "stock": 0
@@ -121,10 +121,10 @@
    "season": "Otoño-Invierno 2026",
    "size": "L",
    "color": "Negro",
-   "price": 800,
+   "price": 650,
    "desc": "Ligera y abrigadora · Diseño acolchado · Capucha integrada con interior afelpado · Forro interior suave y térmico · Cierre frontal de alta calidad · Bolsillos laterales con cierre · Puños elásticos",
    "photo": "fotos/3bf05661ebfbfa32.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "chamarra-acolchada-negro-xl",
@@ -133,7 +133,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "XL",
    "color": "Negro",
-   "price": 800,
+   "price": 650,
    "desc": "Ligera y abrigadora · Diseño acolchado · Capucha integrada con interior afelpado · Forro interior suave y térmico · Cierre frontal de alta calidad · Bolsillos laterales con cierre · Puños elásticos",
    "photo": "fotos/3bf05661ebfbfa32.jpg",
    "stock": 0
@@ -172,7 +172,7 @@
    "price": 500,
    "desc": "Ligera y versátil · Tela ligera y cómoda · Diseño clásico y moderno · Cuello tipo bomber · Cierre frontal de alta calidad · Puños elásticos acanalados · Forro interior suave · Dos bolsillos laterales",
    "photo": "fotos/4aba2d4d8ada21de.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "chamarra-bomber-cafe-xl",
@@ -220,7 +220,7 @@
    "price": 500,
    "desc": "Ligera y versátil · Tela ligera y cómoda · Diseño clásico y moderno · Cuello tipo bomber · Cierre frontal de alta calidad · Puños elásticos acanalados · Forro interior suave · Dos bolsillos laterales",
    "photo": "fotos/5d39cb912a60fc45.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "chamarra-bomber-negro-xl",
@@ -241,7 +241,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "S",
    "color": "Verde olivo",
-   "price": 950,
+   "price": 1100,
    "desc": "Cálida, versátil y funcional · Tela exterior impermeable y resistente · Forro interior acolchado con cuadrícula · Cuello afelpado · Doble cierre (chamarra + forro interior) · Bolsillos laterales con cierre · Puños ajustables",
    "photo": "fotos/e35b87c651a10c06.jpg",
    "stock": 0
@@ -253,7 +253,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "M",
    "color": "Verde olivo",
-   "price": 950,
+   "price": 1100,
    "desc": "Cálida, versátil y funcional · Tela exterior impermeable y resistente · Forro interior acolchado con cuadrícula · Cuello afelpado · Doble cierre (chamarra + forro interior) · Bolsillos laterales con cierre · Puños ajustables",
    "photo": "fotos/e35b87c651a10c06.jpg",
    "stock": 0
@@ -265,10 +265,10 @@
    "season": "Otoño-Invierno 2026",
    "size": "L",
    "color": "Verde olivo",
-   "price": 950,
+   "price": 1100,
    "desc": "Cálida, versátil y funcional · Tela exterior impermeable y resistente · Forro interior acolchado con cuadrícula · Cuello afelpado · Doble cierre (chamarra + forro interior) · Bolsillos laterales con cierre · Puños ajustables",
    "photo": "fotos/e35b87c651a10c06.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "chamarra-impermeable-verde-olivo-xl",
@@ -277,7 +277,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "XL",
    "color": "Verde olivo",
-   "price": 950,
+   "price": 1100,
    "desc": "Cálida, versátil y funcional · Tela exterior impermeable y resistente · Forro interior acolchado con cuadrícula · Cuello afelpado · Doble cierre (chamarra + forro interior) · Bolsillos laterales con cierre · Puños ajustables",
    "photo": "fotos/e35b87c651a10c06.jpg",
    "stock": 0
@@ -289,7 +289,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "S",
    "color": "Negro",
-   "price": 950,
+   "price": 1100,
    "desc": "Cálida, versátil y funcional · Tela ligera repelente al agua · Gorro ajustable y afelpado · Forro interior acolchado con cuadrícula · Cuello afelpado · Bolsillos laterales con cierre · Puños ajustables",
    "photo": "fotos/43b43cf2977e4780.jpg",
    "stock": 0
@@ -301,7 +301,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "M",
    "color": "Negro",
-   "price": 950,
+   "price": 1100,
    "desc": "Cálida, versátil y funcional · Tela ligera repelente al agua · Gorro ajustable y afelpado · Forro interior acolchado con cuadrícula · Cuello afelpado · Bolsillos laterales con cierre · Puños ajustables",
    "photo": "fotos/43b43cf2977e4780.jpg",
    "stock": 0
@@ -313,10 +313,10 @@
    "season": "Otoño-Invierno 2026",
    "size": "L",
    "color": "Negro",
-   "price": 950,
+   "price": 1100,
    "desc": "Cálida, versátil y funcional · Tela ligera repelente al agua · Gorro ajustable y afelpado · Forro interior acolchado con cuadrícula · Cuello afelpado · Bolsillos laterales con cierre · Puños ajustables",
    "photo": "fotos/43b43cf2977e4780.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "chamarra-impermeable-negro-xl",
@@ -325,7 +325,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "XL",
    "color": "Negro",
-   "price": 950,
+   "price": 1100,
    "desc": "Cálida, versátil y funcional · Tela ligera repelente al agua · Gorro ajustable y afelpado · Forro interior acolchado con cuadrícula · Cuello afelpado · Bolsillos laterales con cierre · Puños ajustables",
    "photo": "fotos/43b43cf2977e4780.jpg",
    "stock": 0
@@ -337,7 +337,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "S",
    "color": "Café",
-   "price": 650,
+   "price": 700,
    "desc": "Cálida y versátil · Tela tipo pana suave y cálida · Bolsillo interior (uno en cada lado) · Bolsillos en el pecho con solapa y botón · Bolsillos laterales · Cierre frontal con botones · Puños con botón",
    "photo": "fotos/f5bc3d2c0b7aae19.jpg",
    "stock": 0
@@ -349,7 +349,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "M",
    "color": "Café",
-   "price": 650,
+   "price": 700,
    "desc": "Cálida y versátil · Tela tipo pana suave y cálida · Bolsillo interior (uno en cada lado) · Bolsillos en el pecho con solapa y botón · Bolsillos laterales · Cierre frontal con botones · Puños con botón",
    "photo": "fotos/f5bc3d2c0b7aae19.jpg",
    "stock": 0
@@ -361,10 +361,10 @@
    "season": "Otoño-Invierno 2026",
    "size": "L",
    "color": "Café",
-   "price": 650,
+   "price": 700,
    "desc": "Cálida y versátil · Tela tipo pana suave y cálida · Bolsillo interior (uno en cada lado) · Bolsillos en el pecho con solapa y botón · Bolsillos laterales · Cierre frontal con botones · Puños con botón",
    "photo": "fotos/f5bc3d2c0b7aae19.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "chamarra-tipo-camisa-cafe-xl",
@@ -373,7 +373,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "XL",
    "color": "Café",
-   "price": 650,
+   "price": 700,
    "desc": "Cálida y versátil · Tela tipo pana suave y cálida · Bolsillo interior (uno en cada lado) · Bolsillos en el pecho con solapa y botón · Bolsillos laterales · Cierre frontal con botones · Puños con botón",
    "photo": "fotos/f5bc3d2c0b7aae19.jpg",
    "stock": 0
@@ -385,7 +385,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "S",
    "color": "Negro",
-   "price": 650,
+   "price": 700,
    "desc": "Cálida y versátil · Tela suave y cálida · Forro interior térmico y suave · Bolsillo interior (uno en cada lado) · Bolsillos en el pecho con solapa y botón · Bolsillos laterales · Cierre frontal con botones · Puños con botón",
    "photo": "fotos/a5c364462704323d.jpg",
    "stock": 0
@@ -397,7 +397,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "M",
    "color": "Negro",
-   "price": 650,
+   "price": 700,
    "desc": "Cálida y versátil · Tela suave y cálida · Forro interior térmico y suave · Bolsillo interior (uno en cada lado) · Bolsillos en el pecho con solapa y botón · Bolsillos laterales · Cierre frontal con botones · Puños con botón",
    "photo": "fotos/a5c364462704323d.jpg",
    "stock": 0
@@ -409,10 +409,10 @@
    "season": "Otoño-Invierno 2026",
    "size": "L",
    "color": "Negro",
-   "price": 650,
+   "price": 700,
    "desc": "Cálida y versátil · Tela suave y cálida · Forro interior térmico y suave · Bolsillo interior (uno en cada lado) · Bolsillos en el pecho con solapa y botón · Bolsillos laterales · Cierre frontal con botones · Puños con botón",
    "photo": "fotos/a5c364462704323d.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "chamarra-tipo-camisa-negro-xl",
@@ -421,7 +421,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "XL",
    "color": "Negro",
-   "price": 650,
+   "price": 700,
    "desc": "Cálida y versátil · Tela suave y cálida · Forro interior térmico y suave · Bolsillo interior (uno en cada lado) · Bolsillos en el pecho con solapa y botón · Bolsillos laterales · Cierre frontal con botones · Puños con botón",
    "photo": "fotos/a5c364462704323d.jpg",
    "stock": 0
@@ -433,7 +433,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "S",
    "color": "Negro",
-   "price": 500,
+   "price": 700,
    "desc": "Tela suave y ligera · Diseño clásico y versátil · Cuello clásico · Dos bolsillos frontales con solapa y botón · Detalle en mangas con botones",
    "photo": "fotos/f0ea64530c7602ee.jpg",
    "stock": 0
@@ -445,7 +445,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "M",
    "color": "Negro",
-   "price": 500,
+   "price": 700,
    "desc": "Tela suave y ligera · Diseño clásico y versátil · Cuello clásico · Dos bolsillos frontales con solapa y botón · Detalle en mangas con botones",
    "photo": "fotos/f0ea64530c7602ee.jpg",
    "stock": 0
@@ -457,10 +457,10 @@
    "season": "Otoño-Invierno 2026",
    "size": "L",
    "color": "Negro",
-   "price": 500,
+   "price": 700,
    "desc": "Tela suave y ligera · Diseño clásico y versátil · Cuello clásico · Dos bolsillos frontales con solapa y botón · Detalle en mangas con botones",
    "photo": "fotos/f0ea64530c7602ee.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "chamarra-de-franela-ligera-tipo-camisa-negro-xl",
@@ -469,7 +469,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "XL",
    "color": "Negro",
-   "price": 500,
+   "price": 700,
    "desc": "Tela suave y ligera · Diseño clásico y versátil · Cuello clásico · Dos bolsillos frontales con solapa y botón · Detalle en mangas con botones",
    "photo": "fotos/f0ea64530c7602ee.jpg",
    "stock": 0
@@ -508,7 +508,7 @@
    "price": 600,
    "desc": "Exterior de franela de alta calidad · Forro interior tipo borrega (térmico) · Interior suave y abrigador · 2 bolsillos en pecho con solapa y botón · Botones reforzados · Cuello clásico con estructura",
    "photo": "fotos/6c03a343591df825.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "chamarra-de-franela-con-borrega-cuadros-azul-marino-xl",
@@ -556,7 +556,7 @@
    "price": 600,
    "desc": "Exterior de franela de alta calidad · Forro interior tipo borrega (térmico) · Interior suave y abrigador · 2 bolsillos en pecho con solapa y botón · Botones reforzados · Cuello clásico con estructura",
    "photo": "fotos/867e9fb388445fc4.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "chamarra-de-franela-con-borrega-cuadros-azul-xl",
@@ -604,7 +604,7 @@
    "price": 600,
    "desc": "Exterior de franela de alta calidad · Forro interior tipo borrega (térmico) · Interior suave y abrigador · 2 bolsillos en pecho con solapa y botón · Botones reforzados · Cuello clásico con estructura",
    "photo": "fotos/acf89d0dc4d76a88.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "chamarra-de-franela-con-borrega-cuadros-cafe-xl",
@@ -625,7 +625,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "S",
    "color": "Negro",
-   "price": 700,
+   "price": 650,
    "desc": "Cálida, ligera y funcional · Tela de neopreno resistente al agua · Forro interior térmico y suave · Cuello alto con protección · Bolsillo en el pecho y bolsillos laterales con cierre · Ajuste inferior con elástico",
    "photo": "fotos/160d53cadb8ecd93.jpg",
    "stock": 0
@@ -637,7 +637,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "M",
    "color": "Negro",
-   "price": 700,
+   "price": 650,
    "desc": "Cálida, ligera y funcional · Tela de neopreno resistente al agua · Forro interior térmico y suave · Cuello alto con protección · Bolsillo en el pecho y bolsillos laterales con cierre · Ajuste inferior con elástico",
    "photo": "fotos/160d53cadb8ecd93.jpg",
    "stock": 0
@@ -649,10 +649,10 @@
    "season": "Otoño-Invierno 2026",
    "size": "L",
    "color": "Negro",
-   "price": 700,
+   "price": 650,
    "desc": "Cálida, ligera y funcional · Tela de neopreno resistente al agua · Forro interior térmico y suave · Cuello alto con protección · Bolsillo en el pecho y bolsillos laterales con cierre · Ajuste inferior con elástico",
    "photo": "fotos/160d53cadb8ecd93.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "chamarra-de-neopreno-negro-xl",
@@ -661,7 +661,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "XL",
    "color": "Negro",
-   "price": 700,
+   "price": 650,
    "desc": "Cálida, ligera y funcional · Tela de neopreno resistente al agua · Forro interior térmico y suave · Cuello alto con protección · Bolsillo en el pecho y bolsillos laterales con cierre · Ajuste inferior con elástico",
    "photo": "fotos/160d53cadb8ecd93.jpg",
    "stock": 0
@@ -673,7 +673,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "S",
    "color": "Café",
-   "price": 900,
+   "price": 650,
    "desc": "Cálida, clásica y resistente · Tela exterior de pana · Forro interior y cuello tipo borrega · Bolsillos en pecho con solapa y botón · Bolsillos laterales · Botones decorativos · Puños con botón",
    "photo": "fotos/f6a713f368fd6940.jpg",
    "stock": 0
@@ -685,7 +685,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "M",
    "color": "Café",
-   "price": 900,
+   "price": 650,
    "desc": "Cálida, clásica y resistente · Tela exterior de pana · Forro interior y cuello tipo borrega · Bolsillos en pecho con solapa y botón · Bolsillos laterales · Botones decorativos · Puños con botón",
    "photo": "fotos/f6a713f368fd6940.jpg",
    "stock": 0
@@ -697,10 +697,10 @@
    "season": "Otoño-Invierno 2026",
    "size": "L",
    "color": "Café",
-   "price": 900,
+   "price": 650,
    "desc": "Cálida, clásica y resistente · Tela exterior de pana · Forro interior y cuello tipo borrega · Bolsillos en pecho con solapa y botón · Bolsillos laterales · Botones decorativos · Puños con botón",
    "photo": "fotos/f6a713f368fd6940.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "chamarra-de-pana-con-forro-borrega-cafe-xl",
@@ -709,7 +709,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "XL",
    "color": "Café",
-   "price": 900,
+   "price": 650,
    "desc": "Cálida, clásica y resistente · Tela exterior de pana · Forro interior y cuello tipo borrega · Bolsillos en pecho con solapa y botón · Bolsillos laterales · Botones decorativos · Puños con botón",
    "photo": "fotos/f6a713f368fd6940.jpg",
    "stock": 0
@@ -721,7 +721,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "S",
    "color": "Negro",
-   "price": 900,
+   "price": 650,
    "desc": "Cálida, clásica y resistente · Tela exterior de pana · Forro interior y cuello tipo borrega · Bolsillos en pecho con solapa y botón · Bolsillos laterales · Botones decorativos · Puños con botón",
    "photo": "fotos/f94924ca31717a26.jpg",
    "stock": 0
@@ -733,7 +733,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "M",
    "color": "Negro",
-   "price": 900,
+   "price": 650,
    "desc": "Cálida, clásica y resistente · Tela exterior de pana · Forro interior y cuello tipo borrega · Bolsillos en pecho con solapa y botón · Bolsillos laterales · Botones decorativos · Puños con botón",
    "photo": "fotos/f94924ca31717a26.jpg",
    "stock": 0
@@ -745,10 +745,10 @@
    "season": "Otoño-Invierno 2026",
    "size": "L",
    "color": "Negro",
-   "price": 900,
+   "price": 650,
    "desc": "Cálida, clásica y resistente · Tela exterior de pana · Forro interior y cuello tipo borrega · Bolsillos en pecho con solapa y botón · Bolsillos laterales · Botones decorativos · Puños con botón",
    "photo": "fotos/f94924ca31717a26.jpg",
-   "stock": 0
+   "stock": 3
   },
   {
    "id": "chamarra-de-pana-con-forro-borrega-negro-xl",
@@ -757,7 +757,7 @@
    "season": "Otoño-Invierno 2026",
    "size": "XL",
    "color": "Negro",
-   "price": 900,
+   "price": 650,
    "desc": "Cálida, clásica y resistente · Tela exterior de pana · Forro interior y cuello tipo borrega · Bolsillos en pecho con solapa y botón · Bolsillos laterales · Botones decorativos · Puños con botón",
    "photo": "fotos/f94924ca31717a26.jpg",
    "stock": 0
