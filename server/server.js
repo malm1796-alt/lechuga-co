@@ -7,6 +7,7 @@ const crypto = require("node:crypto");
 const { execFile } = require("node:child_process");
 const { db, ROOT, getSettings, saveSettings, checkPassword, hashPassword, createUser, PHOTO_EXT, phoneKey, PERMS, ROLE_PERMS, permsOf } = require("./db");
 const agente = require("./agente");
+const botSync = require("./bot-sync");
 
 const PORT = Number(process.env.PORT || 8787);
 const DOCS = path.join(ROOT, "docs");
@@ -287,7 +288,9 @@ async function publishStore() {
   const c = await git(["commit", "-m", "Actualiza catálogo de la tienda"]);
   if (!c.ok && !/nothing to commit|nada para hacer commit/i.test(c.out)) return { ok: false, pushed: false, message: "No se pudo guardar el cambio en git: " + c.out.slice(0, 300) };
   const p = await git(["push"]);
-  return p.ok ? { ok: true, pushed: true, message: "Tienda publicada. GitHub tarda 1 o 2 minutos en mostrar los cambios." }
+  // El bot de WhatsApp toma los mismos precios y modelos (se sube en segundo plano, tarda ~1 minuto).
+  if (p.ok) botSync.syncBot().then(r => { if (!r.ok) console.log("  Bot de WhatsApp: no se pudo actualizar el catálogo:", r.error || r.skipped); });
+  return p.ok ? { ok: true, pushed: true, message: "Tienda publicada. GitHub tarda 1 o 2 minutos en mostrar los cambios; el bot de WhatsApp se actualiza en un minuto." }
     : { ok: false, pushed: false, message: "Se generó el catálogo pero no se pudo subir a GitHub: " + p.out.slice(0, 300) };
 }
 

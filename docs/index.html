@@ -146,6 +146,15 @@ footer .legal{border-top:1px solid rgba(255,255,255,.1);padding-block:16px;font-
 .size{min-width:58px;padding:11px 12px;border:1.5px solid var(--night);border-radius:4px;font:700 .82rem var(--f-title)}
 .size[aria-pressed="true"]{background:var(--night);color:#fff}
 .size:disabled{opacity:.3;text-decoration:line-through;cursor:not-allowed}
+.qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.qcell{border:1.5px solid var(--line);border-radius:6px;padding:8px;display:grid;gap:6px;justify-items:center}
+.qcell.on{border-color:var(--night);background:#f4f1ea}
+.qcell.off{opacity:.4}
+.qcell b{font:700 .9rem var(--f-title)}
+.qstep{display:flex;align-items:center;gap:8px}
+.qstep button{width:30px;height:30px;border:1px solid var(--night);border-radius:4px;font:700 1rem var(--f-title)}
+.qstep button:disabled{opacity:.3;cursor:not-allowed}
+.qstep span{min-width:18px;text-align:center;font-weight:700}
 .line{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:12px;align-items:center;padding-block:12px;border-bottom:1px solid var(--line)}
 .line .ph{width:72px;border-radius:4px}
 .line .noimg span{display:none}
@@ -181,7 +190,7 @@ const CAT_SUB={"chamarras":"Protección y estilo","sudaderas":"Estilo casual","c
 const COLORS={negro:"#111",blanco:"#fff","azul marino":"#1d2a4d",azul:"#2d5aa0",gris:"#8a8f96","gris oxford":"#5c6168","gris oscuro":"#4a4e54","gris claro":"#c9ccd0",olivo:"#4d5a32",khaki:"#c8b08a",vino:"#6d1f2b",cafe:"#6b4a33",camel:"#b98a56",taupe:"#9a8b7a",carbon:"#3a3d42",rojo:"#b8322b"};
 const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();
 let C={settings:{name:"Lechuga & Co.",tagline:"",phone:"",currency:"MXN",city:"",promo:null},items:[]};
-const U={cat:"",season:"",q:"",open:null,size:null,bag:[],showBag:false,reg:false,priv:false,regMsg:null,firstBuy:false};
+const U={cat:"",season:"",q:"",qs:{},open:null,size:null,bag:[],showBag:false,reg:false,priv:false,regMsg:null,firstBuy:false};
 let API="";
 try{U.bag=JSON.parse(localStorage.getItem("lc-cesta")||"[]");U.firstBuy=localStorage.getItem("lc-registrado")==="1"}catch{}
 const saveBag=()=>{try{localStorage.setItem("lc-cesta",JSON.stringify(U.bag))}catch{}};
@@ -278,14 +287,20 @@ function render(){
 function sheetHTML(all){
   const m=U.open&&all.find(x=>x.key===U.open);if(!m)return "";
   const col=colorOf(m),sel=col.sizes.find(s=>s.id===U.size),it=sel&&C.items.find(i=>i.id===sel.id),specs=specsOf(m.desc);
-  const ask=wa(`Hola ${C.settings.name} 👋 Me interesa: ${m.name}${col.color?" ("+col.color+")":""}${sel?", talla "+sel.size:""}. ¿Está disponible?`);
+  // Piezas elegidas por talla (solo de este color). La página publica hasta 3 de existencia por talla; si dice 3 puede haber más.
+  const picks=col.sizes.filter(s=>(U.qs[s.id]||0)>0),nPick=picks.reduce((a,s)=>a+U.qs[s.id],0),pickTot=picks.reduce((a,s)=>a+U.qs[s.id]*((C.items.find(i=>i.id===s.id)||{}).price||m.price),0);
+  const tallas=picks.length?", "+picks.map(s=>`${U.qs[s.id]} talla ${s.size}`).join(", "):sel?", talla "+sel.size:"";
+  const ask=wa(`Hola ${C.settings.name} 👋 Me interesa: ${m.name}${col.color?" ("+col.color+")":""}${tallas}. ¿Está disponible?`);
   return `<div class="shade" data-act="close"></div><aside class="sheet" role="dialog" aria-modal="true" aria-label="${esc(m.name)}"><button class="x" data-act="close">Cerrar ✕</button>
     <div class="ph" style="border-radius:6px">${pic({photo:col.photo||m.photo,name:m.name,color:col.color})}</div>
     <div style="display:grid;gap:6px"><div class="lab" style="color:var(--gold-dk)">${esc(m.season||"")}</div><h2>${esc(m.name)}</h2><div class="price">${money(it?it.price:m.price)}</div></div>
     ${m.colors.length>1||col.color?`<div style="display:grid;gap:8px"><div class="lab">Color: <span style="font-weight:600;letter-spacing:.05em;text-transform:none">${esc(col.color||"")}</span></div><div class="sizes">${m.colors.map(c=>`<button class="size" data-act="color" data-k="${esc(c.color)}" aria-pressed="${c===col}" style="display:flex;gap:8px;align-items:center"><i style="width:14px;height:14px;border-radius:50%;border:1px solid #c9c4b8;background:${COLORS[norm(c.color)]||"#ddd"}"></i>${esc(c.color)}</button>`).join("")}</div></div>`:""}
-    <div style="display:grid;gap:8px"><div class="lab">Elige tu talla</div><div class="sizes">${col.sizes.map(s=>`<button class="size" data-act="size" data-k="${esc(s.id)}" aria-pressed="${U.size===s.id}" ${s.stock<=0&&col.stock>0?"disabled":""}>${esc(s.size)}</button>`).join("")}</div>
-      ${sel&&measureOf(sel.desc)?`<div class="note">Medidas talla ${esc(sel.size)}: ${esc(measureOf(sel.desc))}</div>`:""}${col.stock>0&&sel&&sel.stock<=2?`<div class="note">Quedan pocas piezas en esta talla.</div>`:""}</div>
-    ${col.stock>0?`<button class="btn dark" data-act="add" ${sel?"":"disabled"}>${sel?"Añadir a la cesta":"Selecciona una talla"}</button>
+    ${col.stock>0?`<div style="display:grid;gap:8px"><div class="lab">¿Cuántas de cada talla?</div><div class="qgrid">${col.sizes.map(s=>{const q=U.qs[s.id]||0,max=s.stock>=3?20:s.stock;
+      return `<div class="qcell ${q?"on":""} ${s.stock<=0?"off":""}"><b>${esc(s.size)}</b><div class="qstep"><button data-act="qdec" data-k="${esc(s.id)}" ${q?"":"disabled"} aria-label="Una menos talla ${esc(s.size)}">−</button><span>${q}</span><button data-act="qinc" data-k="${esc(s.id)}" ${q<max?"":"disabled"} aria-label="Una más talla ${esc(s.size)}">+</button></div><span class="note">${s.stock<=0?"Agotada":s.stock<=2?"Últimas":"&nbsp;"}</span></div>`}).join("")}</div>
+      ${picks.length&&measureOf(picks[0].desc)?`<div class="note">Medidas talla ${esc(picks[0].size)}: ${esc(measureOf(picks[0].desc))}</div>`:""}</div>`
+    :`<div style="display:grid;gap:8px"><div class="lab">Elige tu talla</div><div class="sizes">${col.sizes.map(s=>`<button class="size" data-act="size" data-k="${esc(s.id)}" aria-pressed="${U.size===s.id}">${esc(s.size)}</button>`).join("")}</div>
+      ${sel&&measureOf(sel.desc)?`<div class="note">Medidas talla ${esc(sel.size)}: ${esc(measureOf(sel.desc))}</div>`:""}</div>`}
+    ${col.stock>0?`<button class="btn dark" data-act="add" ${nPick?"":"disabled"}>${nPick?`Añadir a la cesta · ${nPick} pza${nPick===1?"":"s"} · ${money(pickTot)}`:"Elige cuántas de cada talla"}</button>
     ${ask?`<a class="btn wa" href="${esc(ask)}" target="_blank" rel="noopener">Preguntar por WhatsApp</a>`:""}`
     :`<div class="note">Estamos surtiendo este color. Elige tu talla y pregúntanos por WhatsApp: te confirmamos disponibilidad al momento.</div>
     ${ask?`<a class="btn wa" href="${esc(ask)}" target="_blank" rel="noopener">Pregunta disponibilidad por WhatsApp</a>`:""}`}
@@ -338,13 +353,17 @@ document.addEventListener("click",e=>{
   if(b.tagName==="A"&&b.getAttribute("href")==="#")e.preventDefault();
   if(a==="cat"){U.cat=k;U.season=""}
   else if(a==="season"){U.season=k}
-  else if(a==="open"){U.open=k;U.size=null;const m=groups().find(x=>x.key===k);if(m){U.color=m.colors[0].color;const ok=m.colors[0].sizes.filter(s=>s.stock>0);if(ok.length===1)U.size=ok[0].id}}
-  else if(a==="color"){U.color=k;U.size=null}
+  else if(a==="open"){U.open=k;U.size=null;U.qs={};const m=groups().find(x=>x.key===k);if(m){U.color=m.colors[0].color;const ok=m.colors[0].sizes.filter(s=>s.stock>0);if(ok.length===1)U.size=ok[0].id}}
+  else if(a==="color"){U.color=k;U.size=null;U.qs={}}
+  else if(a==="qinc"){U.qs[k]=(U.qs[k]||0)+1}
+  else if(a==="qdec"){U.qs[k]=Math.max(0,(U.qs[k]||0)-1)}
   else if(a==="close"){U.open=null}
   else if(a==="size"){U.size=k}
-  else if(a==="add"){const it=C.items.find(i=>i.id===U.size);if(!it||it.stock<=0)return;const m=groups().find(x=>x.key===U.open),col=m&&colorOf(m);
-    const ex=U.bag.find(x=>x.id===it.id);ex?ex.qty++:U.bag.push({id:it.id,qty:1,name:it.name,color:it.color,size:it.size||"Única",price:it.price,photo:(col&&col.photo)||(m&&m.photo)||""});
-    saveBag();U.open=null;U.showBag=true}
+  else if(a==="add"){const m=groups().find(x=>x.key===U.open),col=m&&colorOf(m);if(!col)return;let n=0;
+    // Se suman a la cesta todas las tallas con piezas elegidas.
+    for(const s of col.sizes){const q=U.qs[s.id]||0,it=C.items.find(i=>i.id===s.id);if(!q||!it||it.stock<=0)continue;n+=q;
+      const ex=U.bag.find(x=>x.id===it.id);ex?ex.qty+=q:U.bag.push({id:it.id,qty:q,name:it.name,color:it.color,size:it.size||"Única",price:it.price,photo:col.photo||m.photo||""})}
+    if(!n)return;U.qs={};saveBag();U.open=null;U.showBag=true}
   else if(a==="bag"){U.showBag=true}
   else if(a==="close-bag"){U.showBag=false}
   else if(a==="inc"){U.bag[k].qty++;saveBag()}
