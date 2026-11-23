@@ -12,6 +12,9 @@ const MODEL = "claude-opus-5-5";
 const SECRETS = path.join(DATA, "secretos.json");
 const MEDIA = path.join(DATA, "publicidad");
 const MUSIC = path.join(DATA, "musica");
+// Clips propios grabados con el celular (personas reales usando la ropa). Nombre: <id de prenda o general>--<fecha>.<ext>
+const CLIPS = path.join(DATA, "clips");
+fs.mkdirSync(CLIPS, { recursive: true });
 fs.mkdirSync(MEDIA, { recursive: true });
 fs.mkdirSync(MUSIC, { recursive: true });
 
@@ -24,6 +27,9 @@ CREATE TABLE IF NOT EXISTS ad_posts (
 CREATE TABLE IF NOT EXISTS ad_research (id INTEGER PRIMARY KEY, created_at INTEGER NOT NULL, report TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS ad_log (id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, post_id TEXT, network TEXT, ok INTEGER, detail TEXT);
 `);
+// Resultados de cada pieza publicada (reacciones, comentarios, compartidos…) para que el agente aprenda qué funciona.
+if (!db.prepare("PRAGMA table_info(ad_posts)").all().some(c => c.name === "metrics"))
+  db.exec("ALTER TABLE ad_posts ADD COLUMN metrics TEXT; ALTER TABLE ad_posts ADD COLUMN metrics_at INTEGER; ALTER TABLE ad_posts ADD COLUMN published_at INTEGER;");
 
 /* ---------- configuración y llaves (las llaves nunca salen de esta PC ni se mandan a la caja) ---------- */
 const DEFAULT_CFG = { auto: false, dailyMax: 3, times: ["10:00", "14:00", "19:30"], networks: { facebook: true, instagram: true, tiktok: true }, graphVersion: "v23.0" };
@@ -56,7 +62,8 @@ async function ask(params) {
   for (let i = 0; i < 5; i++) {
     let r;
     try {
-      r = await client.beta.messages.create({ model: MODEL, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default", ...params, messages });
+      // Con streaming: el SDK exige streaming en peticiones que pueden tardar más de 10 minutos (max_tokens grandes).
+      r = await client.beta.messages.stream({ model: MODEL, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default", ...params, messages }).finalMessage();
     } catch (e) {
       if (e instanceof Anthropic.AuthenticationError) throw new Error("La clave de Claude no es válida. Revísala en Conexiones.");
       if (e instanceof Anthropic.RateLimitError) throw new Error("Claude está saturado en este momento. Intenta en unos minutos.");
@@ -80,9 +87,14 @@ async function research() {
     tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8,
       user_location: { type: "approximate", city: "Chihuahua", region: "Chihuahua", country: "MX", timezone: "America/Chihuahua" } }],
     system: `Eres estratega de redes sociales para una tienda de ropa. ${BRAND}`,
-    messages: [{ role: "user", content: `Investiga en internet qué formatos de publicidad de ropa de invierno para hombre están funcionando en este momento en México en TikTok, Instagram (Reels e historias) y Facebook. Quiero formatos y estructuras, no contenido de otras marcas para copiar.
+    messages: [{ role: "user", content: `Investiga en internet qué está funcionando en este momento (${new Date().toLocaleDateString("es-MX", { month: "long", year: "numeric" })}) en publicidad de ropa de invierno para hombre en TikTok, Instagram (Reels e historias) y Facebook, en tres niveles:
+- En el mundo: formatos y tendencias de moda masculina que se están volviendo virales.
+- En México: lo que mejor responde el público mexicano y las fechas o temas del momento (temporada, quincena, fiestas, futbol, clima).
+- En Chihuahua: clima de estos días y de la próxima semana, eventos locales, temas y forma de hablar que conecten con la gente de la ciudad.
+Quiero formatos y estructuras, no contenido de otras marcas para copiar.
 
 Entrega un informe breve en español con:
+0. Qué está pasando ahora: 3 a 5 temas o tendencias del mundo, de México y de Chihuahua que la tienda pueda aprovechar esta semana.
 1. De 5 a 8 formatos en tendencia (por ejemplo: gancho en los primeros 3 segundos, «outfit del día», antes y después, carrusel de colores, precio sorpresa al final, «3 formas de usar»). Para cada uno: cómo se estructura, por qué funciona y en qué red rinde más.
 2. Los mejores días y horarios para publicar en México.
 3. Hashtags útiles en español para ropa de invierno, Chihuahua y moda masculina.
@@ -108,7 +120,20 @@ function catalogForAgent() {
     if (st > 0) { x.tallas.push(p.size); x.piezas += st; }
     if (photos.has(p.id)) { x.foto = true; if (!photos.has(x.id)) x.id = p.id; }
   }
-  return [...g.values()].filter(x => x.piezas > 0);
+  // Mientras no se haya capturado ningún inventario, se anuncian todas las prendas con precio
+  // (la página y el bot ya dicen «pregunta disponibilidad»). En cuanto haya piezas, solo las que tienen.
+  const priced = new Set(db.prepare("SELECT name || '|' || IFNULL(season,'') || '|' || IFNULL(color,'') k FROM products WHERE active = 1 AND price > 0").all().map(r => r.k));
+  const list = [...g.values()].filter(x => priced.has(`${x.modelo}|${x.temporada}|${x.color}`));
+  return inventoryTracked() ? list.filter(x => x.piezas > 0) : list;
+}
+// ¿Ya se capturó inventario? (alguna prenda activa con piezas)
+function inventoryTracked() {
+  for (const p of db.prepare("SELECT id, stock0 FROM products WHERE active = 1").all()) {
+    const inn = db.prepare("SELECT COALESCE(SUM(qty),0) q FROM purchases WHERE product_id = ?").get(p.id).q;
+    const out = db.prepare("SELECT COALESCE(SUM(qty),0) q FROM sale_items WHERE product_id = ?").get(p.id).q;
+    if (p.stock0 + inn - out > 0) return true;
+  }
+  return false;
 }
 const PLAN_SCHEMA = {
   type: "object", additionalProperties: false, required: ["posts"],
@@ -131,11 +156,13 @@ const PLAN_SCHEMA = {
       trend: { type: "string", description: "Formato en tendencia en el que se basa" },
     } } } },
 };
-async function plan({ days = 7, perWeek = 6, networks = ["facebook", "instagram", "tiktok"], start = Date.now() + 36e5 }) {
+// slots (opcional): horario exacto [{ day, time, format }]; cada pieza ocupa uno, en orden.
+async function plan({ days = 7, perWeek = 6, networks = ["facebook", "instagram", "tiktok"], start = Date.now() + 36e5, slots = null }) {
   days = Math.max(1, Math.min(30, Math.round(days)));
-  const total = Math.max(1, Math.min(40, Math.round(perWeek * days / 7)));
+  if (slots) slots = slots.slice(0, 40);
+  const total = slots ? slots.length : Math.max(1, Math.min(40, Math.round(perWeek * days / 7)));
   const st = getSettings(), c = cfg(), cat = catalogForAgent();
-  if (!cat.length) throw new Error("No hay prendas con existencias para anunciar. Carga tu catálogo primero.");
+  if (!cat.length) throw new Error("No hay prendas con precio (o con existencias) para anunciar. Carga tu catálogo primero.");
   const rep = db.prepare("SELECT report FROM ad_research ORDER BY id DESC LIMIT 1").get();
   const sl = st.sale && st.sale.active && (!st.sale.end || new Date().toISOString().slice(0, 10) <= st.sale.end) ? `Descuento general: ${st.sale.title}, ${st.sale.percent}% en toda la tienda para todos los clientes del ${st.sale.start} al ${st.sale.end}${st.sale.minimum ? ", compra mínima $" + st.sale.minimum : ""}. Anúncialo con fuerza en los días previos y durante esas fechas; no lo anuncies después. No uses logotipos de programas oficiales.` : "";
   const pr = st.promo && st.promo.active ? `Promoción activa: ${st.promo.title}, ${st.promo.percent}% en la primera compra de clientes registrados en la página, compra mínima $${st.promo.minimum}${st.promo.end ? ", válida hasta " + st.promo.end : ""}.` : "Sin promoción activa: no menciones descuentos.";
@@ -145,7 +172,9 @@ async function plan({ days = 7, perWeek = 6, networks = ["facebook", "instagram"
     system: `Eres el community manager de Lechuga & Co. ${BRAND}`,
     messages: [{ role: "user", content: `Arma un calendario de ${total} publicaciones para los próximos ${days} días (día 0 = ${new Date(start).toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" })}).
 
-Redes disponibles: ${networks.join(", ")}. Horarios sugeridos: ${c.times.join(", ")}. Máximo ${c.dailyMax} por día.
+Redes disponibles: ${networks.join(", ")}. ${slots ? `Horario EXACTO: entrega exactamente ${slots.length} piezas, en este mismo orden, una por espacio (respeta día, hora y formato de cada una):
+${slots.map((x, i) => `${i + 1}. día ${x.day} a las ${x.time} · ${x.format}`).join("\n")}
+Las «historia» son verticales y rápidas (detrás de cámaras, encuesta, «¿cuál prefieres?», cuenta regresiva, precio sorpresa, recordatorio de WhatsApp); que no se repitan entre sí el mismo día.` : `Horarios sugeridos: ${c.times.join(", ")}. Máximo ${c.dailyMax} por día.`}
 ${pr}
 ${sl}
 Página web: ${st.storeUrl || "(sin dirección)"} · WhatsApp: ${st.phone || "(sin número)"}
@@ -154,6 +183,8 @@ Catálogo disponible (usa SOLO estos ids en product_ids; prefiere los que tienen
 ${JSON.stringify(cat)}
 
 ${rep ? "Tendencias investigadas:\n" + rep.report : "Aún no hay investigación de tendencias: usa formatos probados para ropa en redes."}
+
+${learnings() || "Todavía no hay resultados de publicaciones anteriores: prueba formatos y horarios variados para aprender qué funciona."}
 
 Reglas:
 - Formatos: «post» (imagen de feed: Facebook e Instagram), «historia» (Instagram), «video» (Reels, Facebook y TikTok; TikTok solo acepta video).
@@ -171,12 +202,13 @@ Reglas:
   const ins = db.prepare(`INSERT INTO ad_posts(id, campaign, created_at, scheduled_at, networks, format, template, product_ids, headline, subline, hook, caption, hashtags, music_mood, music_tip, trend, status)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'diseñar')`);
   let n = 0;
-  for (const p of data.posts || []) {
+  (data.posts || []).forEach((p, i) => { if (slots && slots[i]) Object.assign(p, slots[i], { networks: ["facebook", "instagram"] }); });
+  for (const p of (slots ? (data.posts || []).slice(0, slots.length) : data.posts || [])) {
     const ids = [...new Set(p.product_ids.filter(id => valid.has(id)))].slice(0, 4);
     if (!ids.length) continue;
     let nets = [...new Set(p.networks.filter(x => networks.includes(x)))];
     if (p.format !== "video") nets = nets.filter(x => x !== "tiktok");
-    if (p.format === "historia") nets = nets.filter(x => x === "instagram");
+    if (p.format === "historia") nets = nets.filter(x => x === "instagram" || x === "facebook");
     if (!nets.length) continue;
     const [hh, mm] = /^\d{1,2}:\d{2}$/.test(p.time) ? p.time.split(":").map(Number) : [12, 0];
     const when = new Date(base); when.setDate(when.getDate() + Math.max(0, Math.min(days - 1, p.day))); when.setHours(hh, mm, 0, 0);
@@ -236,6 +268,23 @@ function saveMusic(b) {
   const name = String(b.name || "pista").toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "pista";
   fs.writeFileSync(path.join(MUSIC, `${mood}--${name}.${ext}`), Buffer.from(m[2], "base64"));
 }
+const clipsList = () => fs.readdirSync(CLIPS).filter(f => /\.(mp4|mov|webm)$/i.test(f)).map(f => { const st = fs.statSync(path.join(CLIPS, f));
+  return { file: f, product: f.split("--")[0], kb: Math.round(st.size / 1024), at: st.mtimeMs } }).sort((a, b) => b.at - a.at);
+const clipPath = f => { const p = path.join(CLIPS, path.basename(f)); return fs.existsSync(p) ? p : null; };
+// Guarda un clip que llega directo del navegador (sin pasar a texto), con tope de tamaño.
+function saveClip(req, product, type) {
+  const ext = { "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm" }[String(type || "").split(";")[0]];
+  if (!ext) return Promise.reject(new Error("El clip debe ser MP4, MOV o WEBM"));
+  const pid = String(product || "general").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64) || "general";
+  const file = path.join(CLIPS, `${pid}--${Date.now().toString(36)}.${ext}`), out = fs.createWriteStream(file), MAX = 150 * 1024 * 1024;
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    req.on("data", c => { size += c.length; if (size > MAX) { req.destroy(); out.destroy(); fs.rmSync(file, { force: true }); reject(new Error("El clip pesa más de 150 MB: grábalo más corto")); } });
+    req.pipe(out);
+    out.on("finish", () => size ? resolve(clipsList()) : (fs.rmSync(file, { force: true }), reject(new Error("El clip llegó vacío"))));
+    out.on("error", reject);
+  });
+}
 const mediaPath = f => { const p = path.join(MEDIA, path.basename(f)); return fs.existsSync(p) ? p : null; };
 const musicPath = f => { const p = path.join(MUSIC, path.basename(f)); return fs.existsSync(p) ? p : null; };
 
@@ -268,6 +317,17 @@ async function graph(pathPart, params, method = "POST") {
 async function toFacebook(post, url, caption) {
   const s = secrets();
   if (post.format === "video") return (await graph(`${s.metaPageId}/videos`, { file_url: url, description: caption })).id;
+  // Historias de la página: la foto se sube sin publicar y luego se convierte en historia.
+  if (post.format === "historia") {
+    if (/\.mp4$/.test(post.media_file)) {
+      const { video_id, upload_url } = await graph(`${s.metaPageId}/video_stories`, { upload_phase: "start" });
+      const up = await fetch(upload_url, { method: "POST", headers: { Authorization: "OAuth " + s.metaPageToken, file_url: url } });
+      if (!up.ok) throw new Error("Facebook no recibió el video de la historia");
+      return (await graph(`${s.metaPageId}/video_stories`, { upload_phase: "finish", video_id })).post_id || video_id;
+    }
+    const photo = await graph(`${s.metaPageId}/photos`, { url, published: "false" });
+    return (await graph(`${s.metaPageId}/photo_stories`, { photo_id: photo.id })).post_id;
+  }
   return (await graph(`${s.metaPageId}/photos`, { url, message: caption })).post_id;
 }
 async function toInstagram(post, url, caption) {
@@ -331,7 +391,7 @@ function preCheck(post) {
       const out = db.prepare("SELECT COALESCE(SUM(qty),0) q FROM sale_items WHERE product_id = ?").get(pid).q;
       stock += s0 + inn - out;
     }
-    if (stock <= 0) return `${p.name} ${p.color || ""} se agotó`;
+    if (stock <= 0 && inventoryTracked()) return `${p.name} ${p.color || ""} se agotó`;
   }
   return null;
 }
@@ -358,7 +418,67 @@ async function publish(id) {
 }
 // Cada minuto revisa si hay piezas listas cuya hora ya llegó (solo con la publicación automática encendida).
 let busy = false;
+/* ---------- aprender de los resultados ---------- */
+// Pide a Facebook e Instagram cómo le fue a cada pieza publicada en los últimos 30 días.
+async function refreshMetrics() {
+  const rows = db.prepare("SELECT * FROM ad_posts WHERE status IN ('publicado','parcial') AND results IS NOT NULL AND scheduled_at > ?").all(Date.now() - 30 * 864e5);
+  let n = 0;
+  for (const r of rows) {
+    const res = JSON.parse(r.results || "{}"), m = {};
+    try {
+      if (res.facebook && res.facebook.ok && res.facebook.id) {
+        const j = r.format === "video"
+          ? await graph(res.facebook.id, { fields: "likes.summary(true).limit(0),comments.summary(true).limit(0)" }, "GET")
+          : await graph(res.facebook.id, { fields: "reactions.summary(true).limit(0),comments.summary(true).limit(0),shares" }, "GET");
+        m.facebook = { reacciones: (j.reactions || j.likes || {}).summary?.total_count || 0, comentarios: j.comments?.summary?.total_count || 0, compartidos: j.shares?.count || 0 };
+      }
+    } catch (e) { m.facebook = { error: e.message.slice(0, 120) }; }
+    try {
+      if (res.instagram && res.instagram.ok && res.instagram.id && r.format !== "historia") {
+        const j = await graph(res.instagram.id, { fields: "like_count,comments_count" }, "GET");
+        m.instagram = { likes: j.like_count || 0, comentarios: j.comments_count || 0 };
+      }
+    } catch (e) { m.instagram = { error: e.message.slice(0, 120) }; }
+    db.prepare("UPDATE ad_posts SET metrics = ?, metrics_at = ? WHERE id = ?").run(JSON.stringify(m), Date.now(), r.id);
+    n++;
+  }
+  return n;
+}
+// Puntaje simple: comentar o compartir vale más que una reacción.
+function score(m) {
+  if (!m) return 0;
+  const f = m.facebook || {}, i = m.instagram || {};
+  return (f.reacciones || 0) + (i.likes || 0) + 3 * ((f.comentarios || 0) + (i.comentarios || 0)) + 5 * (f.compartidos || 0);
+}
+// Resumen para Claude: qué piezas jalaron más público y cuáles no, con su formato, hora, prenda y gancho.
+function learnings() {
+  const rows = db.prepare("SELECT * FROM ad_posts WHERE metrics IS NOT NULL ORDER BY scheduled_at DESC LIMIT 60").all();
+  if (!rows.length) return "";
+  const name = id => { const p = db.prepare("SELECT name, color FROM products WHERE id = ?").get(id); return p ? `${p.name} ${p.color || ""}`.trim() : id; };
+  const list = rows.map(r => ({ puntaje: score(JSON.parse(r.metrics)), formato: r.format, plantilla: r.template,
+    dia: new Date(r.scheduled_at).toLocaleDateString("es-MX", { weekday: "long" }), hora: new Date(r.scheduled_at).toTimeString().slice(0, 5),
+    prendas: JSON.parse(r.product_ids).map(name).join(", "), titulo: r.headline, gancho: r.hook, tendencia: r.trend, resultados: JSON.parse(r.metrics) }))
+    .sort((a, b) => b.puntaje - a.puntaje);
+  const avg = list.reduce((a, x) => a + x.puntaje, 0) / list.length;
+  return `Resultados reales de ${list.length} publicaciones anteriores (puntaje = reacciones + 3×comentarios + 5×compartidos; promedio ${avg.toFixed(1)}):
+LAS QUE MÁS FUNCIONARON: ${JSON.stringify(list.slice(0, 6))}
+LAS QUE MENOS FUNCIONARON: ${JSON.stringify(list.slice(-4))}
+Aprende de esto: repite y mejora lo que más atrajo (formato, hora, tipo de prenda, estilo de gancho) y cambia lo que no funcionó. Aun así deja 1 de cada 4 piezas para probar algo nuevo en tendencia.`;
+}
+
+let lastLearn = 0;
+async function learnTick() {
+  if (Date.now() - lastLearn < 6 * 36e5) return;
+  lastLearn = Date.now();
+  const s = secrets();
+  try { if (s.metaPageToken) await refreshMetrics(); } catch (e) { log(null, "metricas", false, e.message); }
+  try {
+    const last = db.prepare("SELECT created_at FROM ad_research ORDER BY id DESC LIMIT 1").get();
+    if (s.anthropicKey && (!last || Date.now() - last.created_at > 7 * 864e5)) { await research(); log(null, "investigacion", true, "Investigación semanal de tendencias"); }
+  } catch (e) { log(null, "investigacion", false, e.message); }
+}
 async function tick(onChange) {
+  learnTick().catch(() => {});
   if (busy || !cfg().auto) return;
   busy = true;
   try {
@@ -381,5 +501,5 @@ async function testConnections() {
 const logRows = () => db.prepare("SELECT * FROM ad_log ORDER BY id DESC LIMIT 60").all();
 const latestResearch = () => db.prepare("SELECT created_at, report FROM ad_research ORDER BY id DESC LIMIT 1").get() || null;
 
-module.exports = { status, saveCfg, saveSecrets, research, plan, posts, updatePost, saveMedia, removePost, publish, tick, testConnections,
-  musicList, saveMusic, mediaPath, musicPath, logRows, latestResearch, MUSIC };
+module.exports = { status, saveCfg, saveSecrets, research, plan, posts, updatePost, saveMedia, removePost, publish, tick, testConnections, refreshMetrics, learnings,
+  musicList, saveMusic, mediaPath, musicPath, logRows, latestResearch, MUSIC, clipsList, clipPath, saveClip };

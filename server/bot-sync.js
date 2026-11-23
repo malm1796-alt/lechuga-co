@@ -23,6 +23,19 @@ function catalogForBot() {
     description: `${g.cat} · colores: ${[...g.colors].join(", ")} · tallas ${[...g.sizes].join(", ")} · ${g.desc}`.slice(0, 900) }));
 }
 
+// Lista de fotos (modelo + color → dirección pública en la página) para que el bot las mande por WhatsApp.
+function writePhotos() {
+  const file = path.join(BOT, "member", "fotos.local.ts"), cat = path.join(ROOT, "docs", "catalogo.json");
+  if (!fs.existsSync(path.dirname(file)) || !fs.existsSync(cat)) return false;
+  const items = JSON.parse(fs.readFileSync(cat, "utf8")).items || [], m = new Map();
+  for (const i of items) if (i.photo && !m.has(i.name + "|" + i.color))
+    m.set(i.name + "|" + i.color, { modelo: i.name, color: i.color, precio: i.price, url: "https://malm1796-alt.github.io/lechuga-co/" + i.photo });
+  const next = "// Fotos del catálogo para que el bot las mande por WhatsApp. La caja reescribe este archivo al publicar la página.\nexport const fotos: { modelo: string; color: string; precio: number; url: string }[] = " + JSON.stringify([...m.values()], null, 2) + ";\n";
+  if (fs.existsSync(file) && fs.readFileSync(file, "utf8") === next) return false;
+  fs.writeFileSync(file, next);
+  return true;
+}
+
 // Devuelve true si el catálogo del bot cambió (y hay que subirlo).
 function writeCatalog() {
   if (!fs.existsSync(CONFIG)) return false;
@@ -41,7 +54,8 @@ function syncBot() {
   if (!fs.existsSync(WRANGLER)) return Promise.resolve({ ok: false, skipped: "no está instalado el bot" });
   if (running) return running;
   running = new Promise(resolve => {
-    if (!writeCatalog()) return resolve({ ok: true, skipped: "sin cambios" });
+    const a = writeCatalog(), b = writePhotos();
+    if (!a && !b) return resolve({ ok: true, skipped: "sin cambios" });
     exec(`"${WRANGLER}" deploy`, { cwd: BOT, windowsHide: true, timeout: 5 * 60e3 },
       (err, stdout, stderr) => resolve(err ? { ok: false, error: (stderr || err.message).slice(-400) } : { ok: true, deployed: true }));
   }).finally(() => { running = null; });

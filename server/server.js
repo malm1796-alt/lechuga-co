@@ -416,6 +416,11 @@ async function route(req, res) {
   // need("a", "b") = basta con tener uno de esos permisos. El servidor revisa siempre, aunque la caja ya esconda el botón.
   const need = (...ks) => { if (ks.some(k => user.perms.includes(k))) return true; fail(res, 403, `Tu usuario no tiene permiso para ${PERM_TXT[ks[0]]}. Pídeselo al administrador.`); return false; };
   const needAdmin = () => need("admin");
+  // Clips de video: llegan en crudo (no en JSON) porque pueden pesar mucho.
+  if (m === "POST" && p === "/api/agente/clips") {
+    if (!need("publicidad")) return;
+    return send(res, 200, await agente.saveClip(req, url.searchParams.get("producto"), req.headers["content-type"]));
+  }
   const b = m === "GET" || m === "DELETE" ? {} : await readBody(req);
 
   if (m === "GET" && p === "/api/version") { checkExternalChanges(); return send(res, 200, { version }); }
@@ -489,7 +494,7 @@ async function route(req, res) {
     if (!need("publicidad")) return;
     const sub = p.slice(12);
     const fileOut = (file, mime) => send(res, 200, fs.readFileSync(file), { "Content-Type": mime, "Cache-Control": "private, max-age=3600" });
-    if (m === "GET" && sub === "estado") return send(res, 200, { ...agente.status(), posts: agente.posts(), research: agente.latestResearch(), music: agente.musicList(), log: agente.logRows() });
+    if (m === "GET" && sub === "estado") return send(res, 200, { ...agente.status(), posts: agente.posts(), research: agente.latestResearch(), music: agente.musicList(), clips: agente.clipsList(), log: agente.logRows() });
     if (m === "PUT" && sub === "config") {
       const c = {};
       if (typeof b.auto === "boolean") c.auto = b.auto;
@@ -509,6 +514,13 @@ async function route(req, res) {
     if (m === "POST" && sub === "campana") return send(res, 200, await agente.plan({ days: num(b.days) || 7, perWeek: num(b.perWeek) || 6, networks: Array.isArray(b.networks) ? b.networks : undefined }));
     if (m === "GET" && sub === "musica") return send(res, 200, agente.musicList());
     if (m === "POST" && sub === "musica") { agente.saveMusic(b); return send(res, 200, agente.musicList()); }
+    const cl = /^clips\/([^/]+)$/.exec(sub);
+    if (cl) {
+      const f = agente.clipPath(decodeURIComponent(cl[1]));
+      if (!f) return fail(res, 404, "Clip no encontrado");
+      if (m === "DELETE") { fs.rmSync(f); return send(res, 200, agente.clipsList()); }
+      return fileOut(f, { ".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm" }[path.extname(f).toLowerCase()] || "application/octet-stream");
+    }
     const mus = /^musica\/([^/]+)$/.exec(sub);
     if (mus) {
       const f = agente.musicPath(decodeURIComponent(mus[1]));

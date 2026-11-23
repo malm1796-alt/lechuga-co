@@ -1231,52 +1231,101 @@ async function adAssets(post){
     for(const c of colors)c.img=await loadImage(c.src)}
   return {items,colors,promo:S.settings.promo&&S.settings.promo.active?S.settings.promo:null,phone:S.settings.phone,url:(S.settings.storeUrl||"").replace(/^https?:\/\//,"").replace(/\/$/,"")};
 }
+function rrect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+// La foto completa dentro del espacio (sin recortar: las fotos del catálogo ya traen sus detalles).
+function contain(ctx,img,x,y,w,h,z=1){const s=Math.min(w/img.width,h/img.height)*z,iw=img.width*s,ih=img.height*s;ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.drawImage(img,x+(w-iw)/2,y+(h-ih)/2,iw,ih);ctx.restore()}
+// Tarjeta blanca con sombra y la foto adentro.
+function photoCard(ctx,img,x,y,w,h,r,z){ctx.save();ctx.shadowColor="rgba(0,0,0,.45)";ctx.shadowBlur=40*(w/900);ctx.shadowOffsetY=14*(w/900);ctx.fillStyle="#fff";rrect(ctx,x,y,w,h,r);ctx.fill();ctx.restore();
+  ctx.save();rrect(ctx,x,y,w,h,r);ctx.clip();ctx.fillStyle="#f4f3ef";ctx.fillRect(x,y,w,h);if(img)contain(ctx,img,x,y,w,h,z);ctx.restore()}
+function pill(ctx,label,x,y,{font,bg=AD_G,color=AD_N,padX=28,h=72,align="left",alpha=1}){ctx.save();ctx.globalAlpha=alpha;ctx.font=font;const w=ctx.measureText(label).width+padX*2,x0=align==="right"?x-w:align==="center"?x-w/2:x;
+  ctx.fillStyle=bg;rrect(ctx,x0,y,w,h,h/2);ctx.fill();ctx.fillStyle=color;ctx.textBaseline="middle";ctx.textAlign="center";ctx.fillText(label,x0+w/2,y+h/2+2);ctx.restore();return w}
+// Descuento vigente para la insignia: primero el de todos (Buen Fin), si no, el de primera compra.
+function adBadge(){const st=S.settings,d=dayKey(Date.now()),sl=st.sale;
+  if(sl&&sl.active&&(!sl.start||d>=sl.start)&&(!sl.end||d<=sl.end))return [`${(sl.title||"Descuento").toUpperCase()} · ${sl.percent}%`,`En toda la tienda${sl.end?" hasta el "+new Date(sl.end+"T12:00").toLocaleDateString("es-MX",{day:"numeric",month:"long"}):""}`];
+  const pr=st.promo;if(pr&&pr.active&&(!pr.end||d<=pr.end))return [`${pr.percent}% 1ª COMPRA`,`Regístrate en la página · desde ${money(pr.minimum)}`];return null}
+function adBackground(ctx,W,H,u){ctx.fillStyle=AD_N;ctx.fillRect(0,0,W,H);
+  const g=ctx.createRadialGradient(W*.5,H*.42,40*u,W*.5,H*.42,W*.9);g.addColorStop(0,"#1f3346");g.addColorStop(1,AD_N);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.strokeStyle="rgba(213,166,75,.14)";ctx.lineWidth=2*u;for(let i=0;i<7;i++){ctx.beginPath();ctx.moveTo(W-(260-i*34)*u,0);ctx.lineTo(W,(260-i*34)*u);ctx.stroke();ctx.beginPath();ctx.moveTo(0,H-(260-i*34)*u);ctx.lineTo((260-i*34)*u,H);ctx.stroke()}ctx.restore()}
+function adHeader(ctx,W,u,alpha){drawMtn(ctx,52*u,34*u,78*u);text(ctx,"LECHUGA & CO.",146*u,84*u,{font:`700 ${34*u}px Montserrat`,spacing:6*u,alpha});
+  text(ctx,"SINCE 1990 · AMERICAN CLOTHING",W-52*u,80*u,{font:`600 ${20*u}px Montserrat`,color:AD_G,align:"right",spacing:3*u,alpha})}
 function drawAd(ctx,W,H,post,A,t){
-  const vid=post.format==="video",endAt=vid?.84:9,u=W/1080,a=(s,e)=>vid?ease((t-s)/(e-s)):1;
-  ctx.fillStyle=AD_N;ctx.fillRect(0,0,W,H);
-  const it=A.items[0]||{},z=vid?1.1-.1*t:1.02;
-  // Fondo: foto(s) de la prenda
-  if(post.template==="coleccion"&&A.items.length>1){const n=Math.min(4,A.items.length),cols=n>2?2:n,rows=Math.ceil(n/2),gw=W/cols,gh=H*.68/rows;
-    A.items.slice(0,4).forEach((x,i)=>{if(x.img)cover(ctx,x.img,(i%cols)*gw,(Math.floor(i/cols))*gh,gw-(i%cols<cols-1?6*u:0),gh-6*u,z)})}
-  else if(post.template==="colores"&&A.colors.length>1){const n=Math.min(4,A.colors.length),cw=W/n;A.colors.slice(0,4).forEach((c,i)=>{if(c.img)cover(ctx,c.img,i*cw,0,cw-6*u,H*.72,z*(1+.03*i))})}
-  else if(it.img)cover(ctx,it.img,0,0,W,H*.78,z);
-  const g=ctx.createLinearGradient(0,H*.42,0,H);g.addColorStop(0,"rgba(16,25,35,0)");g.addColorStop(.42,"rgba(16,25,35,.88)");g.addColorStop(1,AD_N);ctx.fillStyle=g;ctx.fillRect(0,H*.42,W,H*.58);
-  const tg=ctx.createLinearGradient(0,0,0,220*u);tg.addColorStop(0,"rgba(16,25,35,.75)");tg.addColorStop(1,"rgba(16,25,35,0)");ctx.fillStyle=tg;ctx.fillRect(0,0,W,220*u);
-  // Encabezado con el logo
-  drawMtn(ctx,56*u,52*u,92*u);text(ctx,"LECHUGA & CO.",168*u,104*u,{font:`700 ${38*u}px Montserrat`,spacing:6*u,alpha:a(0,.08)});
-  // Insignia de promoción
-  if(A.promo&&post.template!=="promo"){const r=96*u,cx=W-r-48*u,cy=r+44*u,s=a(.1,.2);ctx.save();ctx.globalAlpha=s;ctx.fillStyle=AD_G;ctx.beginPath();ctx.arc(cx,cy,r*s,0,7);ctx.fill();ctx.restore();
-    text(ctx,A.promo.percent+"%",cx,cy+8*u,{font:`italic 800 ${64*u}px Montserrat`,color:AD_N,align:"center",alpha:s});text(ctx,"1ª COMPRA",cx,cy+46*u,{font:`800 ${22*u}px Montserrat`,color:AD_N,align:"center",alpha:s,spacing:2*u})}
-  // Gancho de los primeros segundos (solo video)
-  if(vid&&post.hook&&t<.3){const al=Math.min(a(0,.05),1-ease((t-.24)/.06));ctx.save();ctx.font=`italic 800 ${76*u}px Montserrat`;const ls=lines(ctx,post.hook.toUpperCase(),W-160*u).slice(0,4);ctx.restore();
-    ls.forEach((l,i)=>text(ctx,l,W/2,H*.38+i*86*u,{font:`italic 800 ${76*u}px Montserrat`,align:"center",alpha:al}))}
-  // Bloque inferior: título, frase y precio
-  const show=vid?a(.28,.4):1,dy=(1-show)*60*u;let y=H-(post.format==="post"?440:520)*u+dy;
-  ctx.save();ctx.font=`italic 800 ${(post.format==="post"?84:96)*u}px Montserrat`;const hl=lines(ctx,(post.headline||it.p&&it.p.name||"").toUpperCase(),W-120*u).slice(0,2);ctx.restore();
-  y-=(hl.length-1)*(post.format==="post"?88:100)*u;
-  hl.forEach((l,i)=>text(ctx,l,60*u,y+i*(post.format==="post"?88:100)*u,{font:`italic 800 ${(post.format==="post"?84:96)*u}px Montserrat`,color:i===hl.length-1&&hl.length>1?AD_G:"#fff",alpha:show}));
-  y+=hl.length*(post.format==="post"?88:100)*u-20*u;
-  if(post.subline){ctx.save();ctx.font=`500 ${34*u}px Poppins`;const sl=lines(ctx,post.subline,W-120*u).slice(0,2);ctx.restore();sl.forEach((l,i)=>text(ctx,l,60*u,y+i*46*u,{font:`500 ${34*u}px Poppins`,color:"#dfe4e8",alpha:show}));y+=sl.length*46*u+30*u}
-  const pa=vid?a(.42,.52):1;
-  if(post.template==="promo"&&A.promo){text(ctx,A.promo.percent+"% EN TU PRIMERA COMPRA",60*u,y+40*u,{font:`italic 800 ${50*u}px Montserrat`,color:AD_G,alpha:pa});
-    text(ctx,`Regístrate en la página · compras desde ${money(A.promo.minimum)}`,60*u,y+92*u,{font:`500 ${30*u}px Poppins`,color:"#fff",alpha:pa})}
-  else if(it.p){const pr=(post.template==="coleccion"||!it.sameprice?"Desde ":"")+money(Math.min(...A.items.map(x=>x.price)));
-    text(ctx,pr,60*u,y+56*u,{font:`800 ${64*u}px Montserrat`,color:AD_G,alpha:pa});
-    const info=post.template==="colores"&&A.colors.length>1?`${A.colors.length} colores · ${A.colors.map(c=>c.color).join(", ")}`:it.sizes.length?"Tallas "+it.sizes.join(" · "):"";
-    if(info){ctx.save();ctx.font=`500 ${30*u}px Poppins`;const il=lines(ctx,info,W-120*u)[0];ctx.restore();text(ctx,il,60*u,y+104*u,{font:`500 ${30*u}px Poppins`,color:"#fff",alpha:pa})}}
-  // Pie
-  ctx.save();ctx.globalAlpha=vid?a(.5,.6):1;ctx.fillStyle=AD_G;ctx.fillRect(60*u,H-118*u,W-120*u,3*u);ctx.restore();
-  text(ctx,"Pide por WhatsApp"+(A.phone?" · "+A.phone:""),60*u,H-64*u,{font:`600 ${30*u}px Poppins`,alpha:vid?a(.5,.6):1});
-  if(A.url)text(ctx,A.url,W-60*u,H-64*u,{font:`500 ${24*u}px Poppins`,color:"#aab3bc",align:"right",alpha:vid?a(.5,.6):1});
+  const vid=post.format==="video",tall=post.format!=="post",endAt=vid?.84:9,u=W/1080,a=(s,e)=>vid?ease((t-s)/(e-s)):1;
+  adBackground(ctx,W,H,u);adHeader(ctx,W,u,1);
+  const it=A.items[0]||{},badge=adBadge();
+  // Gancho de los primeros segundos (solo video), grande y centrado
+  if(vid&&post.hook&&t<.26){const al=Math.min(a(0,.05),1-ease((t-.2)/.06));ctx.save();ctx.font=`italic 800 ${86*u}px Montserrat`;const ls=lines(ctx,post.hook.toUpperCase(),W-160*u).slice(0,4);ctx.restore();
+    ls.forEach((l,i)=>text(ctx,l,W/2,H*.42+(i-(ls.length-1)/2)*96*u,{font:`italic 800 ${86*u}px Montserrat`,align:"center",alpha:al,color:i===ls.length-1?AD_G:"#fff"}))}
+  const show=vid?a(.22,.34):1;
+  // Título arriba de la foto
+  const hs=(tall?84:64)*u,hy=tall?250*u:170*u;
+  ctx.save();ctx.font=`italic 800 ${hs}px Montserrat`;const hl=lines(ctx,(post.headline||it.p&&it.p.name||"").toUpperCase(),W-140*u).slice(0,2);ctx.restore();
+  hl.forEach((l,i)=>text(ctx,l,W/2,hy+i*hs*1.05,{font:`italic 800 ${hs}px Montserrat`,align:"center",color:i===hl.length-1&&hl.length>1?AD_G:"#fff",alpha:vid?a(.3,.4):1}));
+  // Tarjeta(s) con la foto completa
+  // Insignia de descuento centrada entre el título y la foto (no tapa la foto)
+  const ba=vid?a(.4,.48):1,by=H-(tall?230:150)*u;let cy=hy+hl.length*hs*1.05-(tall?20:30)*u;
+  if(badge){pill(ctx,badge[0],W/2,cy,{font:`italic 800 ${(tall?34:30)*u}px Montserrat`,h:(tall?64:58)*u,padX:26*u,align:"center",alpha:ba});cy+=(tall?96:82)*u}else cy+=(tall?40:24)*u;
+  const cw=Math.min((tall?900:800)*u,by-(tall?190:110)*u-cy),cx=(W-cw)/2,r=30*u,sc=vid?.9+.1*show:1,z=vid?1+.05*t:1;
+  ctx.save();ctx.globalAlpha=show;ctx.translate(W/2,cy+cw/2);ctx.scale(sc,sc);ctx.translate(-W/2,-(cy+cw/2));
+  if(post.template==="coleccion"&&A.items.length>1){const n=Math.min(4,A.items.length),gap=18*u,tw=(cw-gap)/2;
+    A.items.slice(0,4).forEach((x,i)=>{const tx=cx+(i%2)*(tw+gap),ty=cy+Math.floor(i/2)*(tw+gap)+(n===2?tw/2:0);photoCard(ctx,x.img,tx,ty,tw,tw,22*u,z);
+      pill(ctx,money(x.price),tx+tw-14*u,ty+tw-60*u,{font:`800 ${28*u}px Montserrat`,h:46*u,padX:16*u,align:"right"})})}
+  else if(post.template==="colores"&&A.colors.length>1){const n=Math.min(4,A.colors.length),gap=18*u,tw=(cw-gap)/2;
+    A.colors.slice(0,4).forEach((c,i)=>{const tx=cx+(i%2)*(tw+gap)+(n===3&&i===2?(tw+gap)/2:0),ty=cy+Math.floor(i/2)*(tw+gap)+(n===2?tw/2:0);photoCard(ctx,c.img,tx,ty,tw,tw,22*u,z);
+      pill(ctx,c.color,tx+14*u,ty+tw-60*u,{font:`700 ${24*u}px Poppins`,bg:AD_N,color:"#fff",h:46*u,padX:16*u})})}
+  else photoCard(ctx,it.img,cx,cy,cw,cw,r,z);
+  ctx.restore();
+  // Precio sobre la esquina inferior de la tarjeta
+  const pa=vid?a(.46,.56):1,single=!(post.template==="coleccion"&&A.items.length>1);
+  if(it.p&&single){const pr=(!it.sameprice||post.template==="colores"?"Desde ":"")+money(Math.min(...A.items.map(x=>x.price)));
+    pill(ctx,pr,cx+cw+12*u,cy+cw-58*u,{font:`800 ${(tall?54:46)*u}px Montserrat`,h:(tall?92:78)*u,padX:34*u,align:"right",alpha:pa})}
+  // Texto debajo: frase, tallas/colores y botón de WhatsApp
+  let y=cy+cw+(tall?86:62)*u;const ta=vid?a(.5,.6):1;
+  if(post.subline&&tall){ctx.save();ctx.font=`500 ${38*u}px Poppins`;const sl=lines(ctx,post.subline,W-160*u).slice(0,2);ctx.restore();sl.forEach((l,i)=>text(ctx,l,W/2,y+i*50*u,{font:`500 ${38*u}px Poppins`,color:"#e6eaee",align:"center",alpha:ta}));y+=sl.length*50*u+16*u}
+  const info=post.template==="colores"&&A.colors.length>1?`${A.colors.length} colores disponibles`:post.template==="coleccion"&&A.items.length>1?`${A.items.length} modelos · tallas S a XL`:it.sizes&&it.sizes.length?"Tallas "+it.sizes.join(" · "):badge?badge[1]:"Tallas S · M · L · XL";
+  text(ctx,info,W/2,y+(tall?10:0)*u,{font:`600 ${(tall?32:28)*u}px Poppins`,color:AD_G,align:"center",alpha:ta});
+  const bw=W-(tall?200:240)*u;
+  ctx.save();ctx.globalAlpha=vid?a(.56,.66):1;ctx.fillStyle="#25d366";rrect(ctx,(W-bw)/2,by,bw,(tall?100:84)*u,(tall?50:42)*u);ctx.fill();ctx.restore();
+  text(ctx,"PIDE POR WHATSAPP"+(A.phone?" · "+A.phone:""),W/2,by+(tall?62:53)*u,{font:`800 ${(tall?36:30)*u}px Montserrat`,align:"center",color:"#fff",alpha:vid?a(.56,.66):1});
+  if(A.url)text(ctx,A.url,W/2,H-(tall?70:40)*u,{font:`500 ${(tall?26:22)*u}px Poppins`,color:"#aab3bc",align:"center",alpha:vid?a(.6,.7):1});
   // Cierre del video
-  if(vid&&t>endAt){const e=ease((t-endAt)/.08);ctx.save();ctx.globalAlpha=e;ctx.fillStyle=AD_N;ctx.fillRect(0,0,W,H);ctx.restore();
-    drawMtn(ctx,W/2-130*u,H*.36,260*u);text(ctx,"LECHUGA & CO.",W/2,H*.36+250*u,{font:`700 ${72*u}px Montserrat`,align:"center",spacing:10*u,alpha:e});
-    text(ctx,"ROPA · CHAMARRAS · SUDADERAS",W/2,H*.36+310*u,{font:`600 ${26*u}px Montserrat`,align:"center",color:"#cfd6dd",spacing:8*u,alpha:e});
-    text(ctx,"Pide por WhatsApp",W/2,H*.62,{font:`italic 800 ${58*u}px Montserrat`,align:"center",color:AD_G,alpha:e});
-    if(A.phone)text(ctx,A.phone,W/2,H*.62+70*u,{font:`600 ${44*u}px Poppins`,align:"center",alpha:e});
-    if(A.url)text(ctx,A.url,W/2,H*.62+130*u,{font:`500 ${30*u}px Poppins`,align:"center",color:"#aab3bc",alpha:e})}
+  if(vid&&t>endAt){const e=ease((t-endAt)/.08);ctx.save();ctx.globalAlpha=e;adBackground(ctx,W,H,u);ctx.restore();
+    ctx.save();ctx.globalAlpha=e;drawMtn(ctx,W/2-130*u,H*.33,260*u);ctx.restore();text(ctx,"LECHUGA & CO.",W/2,H*.33+250*u,{font:`700 ${72*u}px Montserrat`,align:"center",spacing:10*u,alpha:e});
+    text(ctx,"ROPA · CHAMARRAS · SUDADERAS",W/2,H*.33+310*u,{font:`600 ${26*u}px Montserrat`,align:"center",color:"#cfd6dd",spacing:8*u,alpha:e});
+    if(badge)pill(ctx,badge[0],W/2,H*.55,{font:`italic 800 ${40*u}px Montserrat`,h:76*u,padX:30*u,align:"center",alpha:e});
+    text(ctx,"Pide por WhatsApp",W/2,H*.66,{font:`italic 800 ${58*u}px Montserrat`,align:"center",color:AD_G,alpha:e});
+    if(A.phone)text(ctx,A.phone,W/2,H*.66+70*u,{font:`600 ${44*u}px Poppins`,align:"center",alpha:e});
+    if(A.url)text(ctx,A.url,W/2,H*.66+130*u,{font:`500 ${30*u}px Poppins`,align:"center",color:"#aab3bc",alpha:e})}
 }
 const adSize=f=>f==="post"?[1080,1350]:[1080,1920];
+// Clips propios de las prendas de la pieza (o generales), ya cargados y listos para dibujarse.
+async function adClips(post){
+  const all=(AG.st&&AG.st.clips)||[];if(!all.length)return [];
+  const fams=new Set(post.product_ids.map(id=>{const p=S.products.find(x=>x.id===id);return p?p.name+"|"+(p.color||""):""}));
+  const mine=all.filter(c=>{const p=S.products.find(x=>x.id===c.product);return p&&fams.has(p.name+"|"+(p.color||""))});
+  const pool=(mine.length?mine:all.filter(c=>c.product==="general")).sort(()=>Math.random()-.5).slice(0,3),out=[];
+  for(const c of pool){try{const v=document.createElement("video");v.muted=true;v.playsInline=true;v.preload="auto";
+    v.src=URL.createObjectURL(await apiBlob("/api/agente/clips/"+encodeURIComponent(c.file)));
+    await new Promise((ok,bad)=>{v.onloadeddata=ok;v.onerror=bad;setTimeout(bad,15000)});if(v.videoWidth)out.push(v)}catch{}}
+  return out;
+}
+// Cuadro de un clip: la persona a pantalla completa con la marca, el gancho, el título y el precio encima.
+function drawClip(ctx,W,H,post,A,v,t){
+  const u=W/1080,vw=v.videoWidth,vh=v.videoHeight,sc=Math.max(W/vw,H/vh)*(1.02+.04*t),iw=vw*sc,ih=vh*sc;
+  ctx.fillStyle=AD_N;ctx.fillRect(0,0,W,H);ctx.drawImage(v,(W-iw)/2,(H-ih)/2,iw,ih);
+  const tg=ctx.createLinearGradient(0,0,0,260*u);tg.addColorStop(0,"rgba(16,25,35,.8)");tg.addColorStop(1,"rgba(16,25,35,0)");ctx.fillStyle=tg;ctx.fillRect(0,0,W,260*u);
+  const bg=ctx.createLinearGradient(0,H*.55,0,H);bg.addColorStop(0,"rgba(16,25,35,0)");bg.addColorStop(.55,"rgba(16,25,35,.82)");bg.addColorStop(1,"rgba(16,25,35,.95)");ctx.fillStyle=bg;ctx.fillRect(0,H*.55,W,H*.45);
+  adHeader(ctx,W,u,1);const it=A.items[0]||{},badge=adBadge();
+  if(post.hook&&t<.25){const al=Math.min(ease(t/.05),1-ease((t-.19)/.06));ctx.save();ctx.font=`italic 800 ${86*u}px Montserrat`;const ls=lines(ctx,post.hook.toUpperCase(),W-160*u).slice(0,3);ctx.restore();
+    ctx.save();ctx.shadowColor="rgba(0,0,0,.6)";ctx.shadowBlur=24*u;ls.forEach((l,i)=>text(ctx,l,W/2,H*.4+(i-(ls.length-1)/2)*96*u,{font:`italic 800 ${86*u}px Montserrat`,align:"center",alpha:al,color:i===ls.length-1?AD_G:"#fff"}));ctx.restore()}
+  const sh=ease((t-.22)/.12);if(sh<=0)return;
+  let y=H-560*u+(1-sh)*60*u;
+  if(badge){pill(ctx,badge[0],60*u,y-70*u,{font:`italic 800 ${32*u}px Montserrat`,h:60*u,padX:24*u,alpha:sh})}
+  ctx.save();ctx.font=`italic 800 ${80*u}px Montserrat`;const hl=lines(ctx,(post.headline||it.p&&it.p.name||"").toUpperCase(),W-120*u).slice(0,2);ctx.restore();
+  hl.forEach((l,i)=>text(ctx,l,60*u,y+40*u+i*86*u,{font:`italic 800 ${80*u}px Montserrat`,color:i===hl.length-1&&hl.length>1?AD_G:"#fff",alpha:sh}));y+=hl.length*86*u+30*u;
+  if(it.p){const pr=(!it.sameprice||post.template==="coleccion"?"Desde ":"")+money(Math.min(...A.items.map(x=>x.price)));pill(ctx,pr,60*u,y,{font:`800 ${52*u}px Montserrat`,h:86*u,padX:32*u,alpha:ease((t-.35)/.1)})}
+  const ba=ease((t-.45)/.1),bw=W-200*u,by=H-230*u;ctx.save();ctx.globalAlpha=ba;ctx.fillStyle="#25d366";rrect(ctx,(W-bw)/2,by,bw,100*u,50*u);ctx.fill();ctx.restore();
+  text(ctx,"PIDE POR WHATSAPP"+(A.phone?" · "+A.phone:""),W/2,by+62*u,{font:`800 ${36*u}px Montserrat`,align:"center",color:"#fff",alpha:ba});
+}
 function pickTrack(mood){const list=(AG.st&&AG.st.music)||[];if(!list.length)return "";const m=list.filter(x=>x.file.startsWith(mood+"--"));const pool=m.length?m:list;return pool[Math.floor(Math.random()*pool.length)].file}
 function blobToDataURL(b){return new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(b)})}
 async function designPost(post,onStep){
@@ -1286,15 +1335,18 @@ async function designPost(post,onStep){
   if(post.format!=="video"){drawAd(ctx,W,H,post,A,1);return {data:cv.toDataURL("image/jpeg",.9),prices,track:""}}
   const mime=["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4;codecs=avc1","video/mp4"].find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m));
   if(!mime)throw new Error("Este navegador no graba video MP4. Abre la caja en Chrome o Edge actualizado para diseñar videos.");
-  const dur=9000,stream=cv.captureStream(30),track=pickTrack(post.music_mood);let ac=null,src=null;
+  const clips=await adClips(post),CL=clips.length?.62:0,dur=clips.length?12000:9000,stream=cv.captureStream(30),track=pickTrack(post.music_mood);let ac=null,src=null;
+  // Con clips: primero las personas reales (62% del video), luego la foto del producto y el cierre.
+  const frameAt=t=>{if(CL&&t<CL){const n=clips.length,k=Math.min(n-1,Math.floor(t/CL*n)),v=clips[k];clips.forEach((x,i)=>{if(i!==k&&!x.paused)x.pause()});if(v.paused){v.currentTime=0;v.play().catch(()=>{})}
+      drawClip(ctx,W,H,post,A,v,t/CL)}else{clips.forEach(x=>{if(!x.paused)x.pause()});drawAd(ctx,W,H,post,A,CL?.22+(t-CL)/(1-CL)*.78:t)}};
   if(track){try{ac=new AudioContext();const buf=await ac.decodeAudioData(await (await apiBlob("/api/agente/musica/"+encodeURIComponent(track))).arrayBuffer());
     src=ac.createBufferSource();src.buffer=buf;const gain=ac.createGain();const dest=ac.createMediaStreamDestination();
     gain.gain.setValueAtTime(0,ac.currentTime);gain.gain.linearRampToValueAtTime(.9,ac.currentTime+.4);gain.gain.setValueAtTime(.9,ac.currentTime+dur/1000-1.2);gain.gain.linearRampToValueAtTime(0,ac.currentTime+dur/1000);
     src.connect(gain).connect(dest);dest.stream.getAudioTracks().forEach(t=>stream.addTrack(t))}catch{ac=null;src=null}}
   const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6e6}),chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
-  const stopped=new Promise(r=>rec.onstop=r);drawAd(ctx,W,H,post,A,0);rec.start(250);if(src)src.start();const t0=performance.now();
-  await new Promise(res=>{const frame=()=>{const t=(performance.now()-t0)/dur;drawAd(ctx,W,H,post,A,Math.min(1,t));if(onStep)onStep(Math.min(1,t));if(t<1)requestAnimationFrame(frame);else res()};requestAnimationFrame(frame)});
-  rec.stop();await stopped;if(ac)ac.close();stream.getTracks().forEach(t=>t.stop());
+  const stopped=new Promise(r=>rec.onstop=r);frameAt(0);rec.start(250);if(src)src.start();const t0=performance.now();
+  await new Promise(res=>{const frame=()=>{const t=(performance.now()-t0)/dur;frameAt(Math.min(1,t));if(onStep)onStep(Math.min(1,t));if(t<1)requestAnimationFrame(frame);else res()};requestAnimationFrame(frame)});
+  rec.stop();await stopped;if(ac)ac.close();stream.getTracks().forEach(t=>t.stop());clips.forEach(v=>{v.pause();URL.revokeObjectURL(v.src)});
   return {data:await blobToDataURL(new Blob(chunks,{type:"video/mp4"})),prices,track};
 }
 async function designMany(list){
@@ -1325,7 +1377,8 @@ function vPublicidad(){
       <span class="small muted">${s.research?"Tendencias del "+fdate(s.research.created_at):"Aún no hay investigación de tendencias"}</span></div>
     <p class="small muted" style="margin:0">Claude busca qué formatos están funcionando, elige tus prendas con existencias y escribe textos originales. La caja diseña las imágenes y videos con tus fotos, precios reales y logo. Deja esta pestaña abierta mientras se diseñan los videos.</p></div>
   ${upcoming.length?`<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))">${upcoming.map(p=>pbCard(p)).join("")}</div>`:`<div class="empty">Aún no hay piezas. Crea tu primera campaña.</div>`}
-  <div class="grid g2">${pbMusic(s)}${pbConn(s)}</div>
+  <div class="grid g2">${pbClips(s)}${pbMusic(s)}</div>
+  <div class="grid g2">${pbConn(s)}</div>
   ${s.research?`<div class="card" style="display:grid;gap:8px"><div class="row between"><h3>Tendencias investigadas</h3><button class="tiny ghost" data-pb="toggle-research">${AG.open.research?"Ocultar":"Ver informe"}</button></div>${AG.open.research?`<div class="small" style="white-space:pre-wrap;max-width:80ch">${esc(s.research.report)}</div>`:""}</div>`:""}
   ${s.log.length?`<div class="card"><h3>Registro</h3><div class="tbl" style="margin-top:8px"><table><tbody>${s.log.slice(0,15).map(l=>`<tr><td class="num">${fdate(l.ts)} ${ftime(l.ts)}</td><td>${esc(NETS[l.network]||"")}</td><td><span class="pill ${l.ok?"good":"bad"}">${l.ok?"OK":"Falló"}</span></td><td style="white-space:normal">${esc(l.detail||"")}</td></tr>`).join("")}</tbody></table></div></div>`:""}`;
 }
@@ -1346,6 +1399,17 @@ function pbCard(p){
       ${p.media_file&&p.status!=="publicado"?`<button class="tiny primary" data-pb="publish" data-k="${p.id}">Publicar ahora</button>`:""}
       ${p.status==="listo"?`<button class="tiny ghost" data-pb="pause" data-k="${p.id}">Pausar</button>`:p.status==="pausado"&&p.media_file?`<button class="tiny ghost" data-pb="resume" data-k="${p.id}">Reanudar</button>`:""}
       ${UI.confirm==="ad"+p.id?`<button class="tiny danger" data-pb="del" data-k="${p.id}">Borrar</button><button class="tiny ghost" data-act="no">No</button>`:`<button class="tiny ghost danger" data-act="ask" data-k="ad${p.id}">Borrar</button>`}</div></div>`;
+}
+// Modelos con precio para ligar cada clip a su prenda (un renglón por modelo y color).
+function clipModels(){const seen=new Map();for(const p of S.products)if(p.active!==false&&num(p.price)>0){const k=p.name+"|"+(p.color||"");if(!seen.has(k))seen.set(k,p)}return [...seen.values()]}
+function pbClips(s){
+  const clips=s.clips||[],label=pid=>{if(pid==="general")return "General (cualquier prenda)";const p=S.products.find(x=>x.id===pid);return p?`${p.name}${p.color?" · "+p.color:""}`:"Prenda"};
+  return `<div class="card" style="display:grid;gap:10px;align-content:start"><h3>Mis clips (personas reales)</h3>
+    <p class="small muted" style="margin:0">Graba con el celular, en <b>vertical</b>, clips de 3 a 5 segundos de alguien usando la prenda: caminando, abrochándose, de espaldas, un acercamiento al forro. Los videos de la publicidad los usan con tu logo, precio y WhatsApp, y cierran con la foto del producto. En iPhone graba en <b>Ajustes → Cámara → Formatos → Más compatible</b>.</p>
+    ${clips.length?`<div class="tbl"><table><tbody>${clips.map(c=>`<tr><td>${esc(label(c.product))}</td><td class="r">${(c.kb/1024).toFixed(1)} MB</td><td><button class="tiny ghost danger" data-pb="del-clip" data-k="${esc(c.file)}">Quitar</button></td></tr>`).join("")}</tbody></table></div>`:`<p class="small" style="margin:0">Aún no hay clips: los videos usan solo las fotos del catálogo.</p>`}
+    <form id="f-clip" class="form"><label class="full">Clips de video (puedes elegir varios)<input type="file" id="cl-file" accept="video/mp4,video/quicktime,video/webm,video/*" multiple required></label>
+      <label class="full">¿Qué prenda sale?<select id="cl-prod"><option value="general">General (cualquier prenda)</option>${clipModels().map(p=>`<option value="${esc(p.id)}">${esc(p.name)}${p.color?" · "+esc(p.color):""}</option>`).join("")}</select></label>
+      <div><button type="submit">Subir clips</button></div></form></div>`;
 }
 function pbMusic(s){
   return `<div class="card" style="display:grid;gap:10px;align-content:start"><h3>Música con licencia</h3>
@@ -1390,6 +1454,7 @@ document.addEventListener("click",async e=>{
     if(a==="pause"||a==="resume"){await api("PUT","/api/agente/piezas/"+k,{status:a==="pause"?"pausado":"listo"});await agLoad()}
     if(a==="del"){UI.confirm=null;await api("DELETE","/api/agente/piezas/"+k);await agLoad()}
     if(a==="del-music"){await api("DELETE","/api/agente/musica/"+encodeURIComponent(k));await agLoad()}
+    if(a==="del-clip"){await api("DELETE","/api/agente/clips/"+encodeURIComponent(k));await agLoad()}
     if(a==="test"){AG.test={claude:{ok:false,detail:"Probando…"}};schedule();AG.test=await api("POST","/api/agente/probar");schedule()}
     if(a==="toggle-research"){AG.open.research=!AG.open.research;schedule()}
   }catch(err){AG.busy="";toast(err.message);schedule()}
@@ -1401,7 +1466,12 @@ document.addEventListener("change",async e=>{
     toast("Guardado");await agLoad()}catch(err){toast(err.message)}
 });
 document.addEventListener("submit",async e=>{
-  const f=e.target;if(f.id!=="f-agent"&&f.id!=="f-music")return;e.preventDefault();e.stopImmediatePropagation();
+  const f=e.target;if(f.id!=="f-agent"&&f.id!=="f-music"&&f.id!=="f-clip")return;e.preventDefault();e.stopImmediatePropagation();
+  if(f.id==="f-clip"){const files=[...$("#cl-file").files],prod=$("#cl-prod").value;if(!files.length)return;
+    try{for(let i=0;i<files.length;i++){const file=files[i];toast(`Subiendo clip ${i+1} de ${files.length}…`);
+      const r=await fetch(API+"/api/agente/clips?producto="+encodeURIComponent(prod),{method:"POST",headers:{Authorization:"Bearer "+TOKEN,"Content-Type":file.type||"video/mp4"},body:file});
+      if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||"No se pudo subir el clip")}}
+      f.reset();await agLoad();toast(files.length>1?"Clips subidos":"Clip subido")}catch(err){toast(err.message)}return}
   try{
     if(f.id==="f-agent"){const v=id=>($(id)||{}).value||"";
       await api("PUT","/api/agente/config",{dailyMax:num(v("#ag-max")),times:v("#ag-times").split(/[,\s]+/).filter(Boolean),

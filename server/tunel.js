@@ -28,14 +28,24 @@ async function announce(url) {
 function start() {
   console.log("  Abriendo túnel de internet…");
   const cf = spawn(exe, ["tunnel", "--no-autoupdate", "--url", `http://localhost:${PORT}`], { windowsHide: true });
-  let announced = false;
+  let announced = false, fails = 0, watch = null;
   const scan = buf => {
     const m = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/.exec(buf.toString());
-    if (m && !announced) { announced = true; announce(m[0]); }
+    if (m && !announced) {
+      announced = true; announce(m[0]);
+      // Vigilante: la dirección gratuita a veces deja de responder aunque cloudflared siga vivo
+      // (cortes de internet, la PC se suspende). Si falla 3 veces seguidas, se reinicia y se anuncia una nueva.
+      watch = setInterval(async () => {
+        try { const r = await fetch(m[0] + "/api/salud", { signal: AbortSignal.timeout(15e3) }); fails = r.ok ? 0 : fails + 1; }
+        catch { fails++; }
+        if (fails >= 3) { console.log("  El túnel dejó de responder. Abriendo uno nuevo…"); clearInterval(watch); cf.kill(); }
+      }, 60e3);
+    }
   };
   cf.stdout.on("data", scan);
   cf.stderr.on("data", scan);
   cf.on("exit", code => {
+    if (watch) clearInterval(watch);
     console.log(`  El túnel se cerró (código ${code}). Reintentando en 10 segundos…`);
     setTimeout(start, 10e3);
   });
