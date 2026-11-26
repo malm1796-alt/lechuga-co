@@ -1371,7 +1371,9 @@ function drawAd(ctx,W,H,post,A,t){
     if(!(post.subline&&tall))text(ctx,`${sl.percent}% en toda la tienda, hasta el ${new Date(sl.end+"T12:00").toLocaleDateString("es-MX",{day:"numeric",month:"long"})}`,66*u,hy+(nh-1)*hs*1.04+56*u,{font:`600 ${28*u}px Montserrat`,color:crema?AD_C.holly:AD_C.gold,alpha:ha})}
   const pr=adPrice(A,post);
   const withTag=pr&&!(post.template==="coleccion"&&A.items.length>1);
-  if(withTag)adTag(ctx,104*u,ctaY-70*u,u,pr,adSub(A,post),{dark,alpha:vid?a(.32,.42):1,swing:vid?Math.sin(t*9)*.03*(1-a(.32,.6)):0});
+  // En «adivina el precio» la etiqueta no lo revela: invita a preguntarlo por WhatsApp.
+  const guess=/adivina|cu[aá]nto crees/i.test(head+" "+(post.hook||""));
+  if(withTag)adTag(ctx,104*u,ctaY-70*u,u,guess?"¿$?":pr,guess?"Pregúntanos el precio":adSub(A,post),{dark,alpha:vid?a(.32,.42):1,swing:vid?Math.sin(t*9)*.03*(1-a(.32,.6)):0});
   adCta(ctx,W,u,ctaY,{dark,phone:A.phone,url:tall?"":A.url,alpha:vid?a(.4,.5):1,x:withTag?W-530*u:null});
   // cierre del video
   if(vid&&t>.84){const e=ease((t-.84)/.08);ctx.save();ctx.globalAlpha=e;adBackground(ctx,W,H,u);ctx.restore();
