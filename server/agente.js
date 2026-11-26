@@ -78,7 +78,7 @@ async function ask(params) {
   throw new Error("La investigación tardó demasiado. Intenta de nuevo.");
 }
 
-const BRAND = `Lechuga & Co. es una tienda de ropa para hombre en Chihuahua, México, desde 1990 («American Clothing»). Vende chamarras, sudaderas, camisas de franela, chalecos y chamarras de piel de borrego hechas en León, Guanajuato. Atiende menudeo y también empresas (uniformes, pedidos por caja). Identidad: azul noche y dorado, logo de montañas, lema «Ropa · Chamarras · Sudaderas». Tono: cercano, de tú, seguro, nada exagerado; un emoji como máximo. Los pedidos se hacen por WhatsApp desde la página web.`;
+const BRAND = `Lechuga & Co. es una tienda de ropa para hombre en Chihuahua, México, desde 1990 («American Clothing»). Vende chamarras, sudaderas, camisas de franela, chalecos y chamarras de piel de borrego hechas en León, Guanajuato. Atiende menudeo y también empresas (uniformes, pedidos por caja). Identidad: azul noche y dorado, logo de montañas, lema «Ropa · Chamarras · Sudaderas». Tono: cercano, de tú, seguro, nada exagerado; un emoji como máximo. Los pedidos se hacen por WhatsApp desde la página web. En la tienda hay muchos más productos de los que salen en el catálogo (más modelos, colores, calzado como tenis para agua y novedades que van llegando): cuando venga al caso, invita a preguntar por WhatsApp «¿buscas algo en especial? pregúntanos, hay mucho más en tienda». Por WhatsApp atiende Alonso, el dueño, en persona: se puede invitar a la gente a escribirle directo.`;
 
 async function research() {
   const report = await ask({
@@ -164,7 +164,7 @@ async function plan({ days = 7, perWeek = 6, networks = ["facebook", "instagram"
   const st = getSettings(), c = cfg(), cat = catalogForAgent();
   if (!cat.length) throw new Error("No hay prendas con precio (o con existencias) para anunciar. Carga tu catálogo primero.");
   const rep = db.prepare("SELECT report FROM ad_research ORDER BY id DESC LIMIT 1").get();
-  const sl = st.sale && st.sale.active && (!st.sale.end || new Date().toISOString().slice(0, 10) <= st.sale.end) ? `Descuento general: ${st.sale.title}, ${st.sale.percent}% en toda la tienda para todos los clientes del ${st.sale.start} al ${st.sale.end}${st.sale.minimum ? ", compra mínima $" + st.sale.minimum : ""}. Anúncialo con fuerza en los días previos y durante esas fechas; no lo anuncies después. No uses logotipos de programas oficiales.` : "";
+  const sl = st.sale && st.sale.active && (!st.sale.end || new Date().toISOString().slice(0, 10) <= st.sale.end) ? `Descuento general: ${st.sale.title}, ${st.sale.percent}% en toda la tienda para todos los clientes del ${st.sale.start} al ${st.sale.end}${st.sale.minimum ? ", compra mínima $" + st.sale.minimum : ""}. Anúncialo con fuerza en los días previos y durante esas fechas; no lo anuncies después. Usa la plantilla «promo» para esas piezas (el diseño pone el logotipo oficial del Buen Fin).` : "";
   const pr = st.promo && st.promo.active ? `Promoción activa: ${st.promo.title}, ${st.promo.percent}% en la primera compra de clientes registrados en la página, compra mínima $${st.promo.minimum}${st.promo.end ? ", válida hasta " + st.promo.end : ""}.` : "Sin promoción activa: no menciones descuentos.";
   const text = await ask({
     max_tokens: 32000,
@@ -193,7 +193,11 @@ Reglas:
 - Nunca escribas precios ni cantidades de dinero en ningún texto: el precio real lo pone el sistema.
 - No prometas envíos gratis, existencias ni plazos de entrega que no se mencionan aquí.
 - Cada pieza se basa en un formato en tendencia, pero todo el texto es original de Lechuga & Co.
-- Captions en español de México, de 1 a 4 renglones, cierre invitando a pedir por WhatsApp o ver la página. De 4 a 8 hashtags sin repetir el #.` }],
+- Captions en español de México, de 1 a 4 renglones, cierre invitando a pedir por WhatsApp o ver la página. De 4 a 8 hashtags sin repetir el #.
+- Campaña de Navidad 2026: «Esta Navidad, regala estilo. Regala Lechuga & Co.» Desde diciembre el ángulo principal es el regalo (para papá, la pareja, el hijo, uno mismo, regalos de empresa); el diseño ya pone esa frase al pie, no la repitas en el titular.
+- Titulares (headline) de 2 a 6 palabras, en minúsculas normales (nunca todo en MAYÚSCULAS), con una idea concreta. El subline de las historias, máximo 8 palabras.
+- Ganchos (hook) de video: una pregunta o frase que se entienda en 2 segundos, máximo 7 palabras.
+- Calidad antes que volumen: no repitas el mismo concepto dos días seguidos.` }],
   });
   let data;
   try { data = JSON.parse(text); } catch { throw new Error("Claude devolvió un calendario que no se pudo leer. Intenta de nuevo."); }
@@ -242,14 +246,18 @@ function updatePost(id, b) {
   if (keys.length) db.prepare(`UPDATE ad_posts SET ${keys.map(k => k + " = ?").join(", ")} WHERE id = ?`).run(...keys.map(k => f[k]), id);
 }
 const MEDIA_TYPES = { "image/png": "png", "image/jpeg": "jpg", "video/mp4": "mp4" };
+const coverOf = f => String(f).replace(/\.mp4$/, "-portada.jpg");
 function saveMedia(id, b) {
   const p = db.prepare("SELECT * FROM ad_posts WHERE id = ?").get(id);
   if (!p) throw new Error("Pieza no encontrada");
   const m = /^data:([a-z]+\/[a-z0-9.+-]+)(?:;codecs=[^;]+)?;base64,([A-Za-z0-9+/=]+)$/.exec(String(b.data || ""));
   if (!m || !MEDIA_TYPES[m[1]]) throw new Error("La pieza debe ser PNG, JPG o video MP4. Este navegador grabó en otro formato: usa Chrome o Edge actualizado.");
-  if (p.media_file) fs.rmSync(path.join(MEDIA, p.media_file), { force: true });
+  if (p.media_file) { fs.rmSync(path.join(MEDIA, p.media_file), { force: true }); fs.rmSync(path.join(MEDIA, coverOf(p.media_file)), { force: true }); }
   const file = `${id}-${Date.now().toString(36)}.${MEDIA_TYPES[m[1]]}`;
   fs.writeFileSync(path.join(MEDIA, file), Buffer.from(m[2], "base64"));
+  // Portada propia del reel (JPG), guardada junto al video con el mismo nombre.
+  const cv = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(b.cover || ""));
+  if (cv && /\.mp4$/.test(file)) fs.writeFileSync(path.join(MEDIA, coverOf(file)), Buffer.from(cv[1], "base64"));
   db.prepare("UPDATE ad_posts SET media_file = ?, price_snapshot = ?, track = ?, status = 'listo', error = NULL WHERE id = ?")
     .run(file, JSON.stringify(b.prices || {}), String(b.track || "").slice(0, 120), id);
 }
@@ -299,6 +307,8 @@ async function publicUrl(post) {
   const dir = path.join(ROOT, "docs", "publicidad"); fs.mkdirSync(dir, { recursive: true });
   fs.copyFileSync(path.join(MEDIA, post.media_file), path.join(dir, post.media_file));
   await git(["add", "docs/publicidad/" + post.media_file]);
+  const cover = coverOf(post.media_file);
+  if (cover !== post.media_file && fs.existsSync(path.join(MEDIA, cover))) { fs.copyFileSync(path.join(MEDIA, cover), path.join(dir, cover)); await git(["add", "docs/publicidad/" + cover]); }
   await git(["commit", "-m", "Pieza de publicidad " + post.id]);
   const p = await git(["push"]);
   if (!p.ok) throw new Error("No se pudo subir la pieza a GitHub: " + p.out.slice(0, 200));
@@ -333,7 +343,7 @@ async function toFacebook(post, url, caption) {
 async function toInstagram(post, url, caption) {
   const s = secrets(), video = /\.mp4$/.test(post.media_file);
   const params = post.format === "historia" ? { media_type: "STORIES", [video ? "video_url" : "image_url"]: url }
-    : video ? { media_type: "REELS", video_url: url, caption, share_to_feed: "true" } : { image_url: url, caption };
+    : video ? { media_type: "REELS", video_url: url, caption, share_to_feed: "true", ...(fs.existsSync(path.join(MEDIA, coverOf(post.media_file))) ? { cover_url: coverOf(url) } : {}) } : { image_url: url, caption };
   const { id } = await graph(`${s.igUserId}/media`, params);
   for (let i = 0; i < 40; i++) {
     const st = await graph(id, { fields: "status_code" }, "GET");

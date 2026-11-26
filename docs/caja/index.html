@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Caja L&amp;C">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poppins:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,500;0,600;0,700;1,500&family=Montserrat:wght@500;600;700;800&family=Poppins:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 /* Caja de Lechuga & Co.: encabezado fijo con pestañas y una superficie de trabajo por pestaña. Azul noche y dorado de la marca. */
 :root{
@@ -1267,7 +1267,7 @@ function quitarFondo(img,max=1400){
 }
 // La foto sin su fondo blanco, directamente sobre el fondo de la pieza (antes era una tarjeta blanca pegada encima).
 const CUTS=new WeakMap();
-function photoCard(ctx,img,x,y,w,h,r,z=1){if(!img)return;let c=CUTS.get(img);if(!c){c=quitarFondo(img);CUTS.set(img,c)}
+function photoCard(ctx,img,x,y,w,h,r,z=1,claro=false){if(!img)return;let m=CUTS.get(img);if(!m){m={};CUTS.set(img,m)}const k=claro?"c":"n";let c=m[k];if(!c){c=m[k]=quitarFondo(img,1400,claro)}
   ctx.save();ctx.translate(x+w/2,y+h/2);ctx.scale(z,z);
   const fy=h*.44/.18,sh=ctx.createRadialGradient(0,fy,0,0,fy,w*.42);sh.addColorStop(0,"rgba(0,0,0,.5)");sh.addColorStop(1,"rgba(0,0,0,0)");ctx.save();ctx.scale(1,.18);ctx.fillStyle=sh;ctx.fillRect(-w/2,fy-w*.42,w,w*.84);ctx.restore();
   contain(ctx,c,-w/2,-h/2,w,h,1);ctx.restore()}
@@ -1284,55 +1284,108 @@ function adBackground(ctx,W,H,u){ctx.fillStyle=AD_N;ctx.fillRect(0,0,W,H);
     const v=ctx.createLinearGradient(0,0,0,H);v.addColorStop(0,"rgba(16,25,35,.78)");v.addColorStop(.45,"rgba(16,25,35,.55)");v.addColorStop(1,"rgba(16,25,35,.92)");ctx.fillStyle=v;ctx.fillRect(0,0,W,H)}
   const g=ctx.createRadialGradient(W*.5,H*.46,40*u,W*.5,H*.46,W*.62);g.addColorStop(0,"rgba(58,86,112,.75)");g.addColorStop(1,"rgba(16,25,35,0)");ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
   ctx.save();ctx.strokeStyle="rgba(213,166,75,.14)";ctx.lineWidth=2*u;for(let i=0;i<7;i++){ctx.beginPath();ctx.moveTo(W-(260-i*34)*u,0);ctx.lineTo(W,(260-i*34)*u);ctx.stroke();ctx.beginPath();ctx.moveTo(0,H-(260-i*34)*u);ctx.lineTo((260-i*34)*u,H);ctx.stroke()}ctx.restore()}
-function adHeader(ctx,W,u,alpha){drawMtn(ctx,52*u,34*u,78*u);text(ctx,"LECHUGA & CO.",146*u,84*u,{font:`700 ${34*u}px Montserrat`,spacing:6*u,alpha});
-  text(ctx,"SINCE 1990 · AMERICAN CLOTHING",W-52*u,80*u,{font:`600 ${20*u}px Montserrat`,color:AD_G,align:"right",spacing:3*u,alpha})}
+/* --- Sistema visual "Esta Navidad, regala estilo" (campaña 2026) ---
+   Dos escenarios que se alternan para que no todas las piezas se vean iguales:
+   «noche»: la foto de invierno de la tienda en azul noche, con luz sobre la prenda.
+   «crema»: papel crema de estudio con copos dibujados y una serie de luces navideñas.
+   La prenda (recortada, sin su fondo blanco) siempre es la protagonista; el precio va en una etiqueta de regalo. */
+const AD_C={navy:"#101923",gold:"#d5a64b",cream:"#f4f1ea",cream2:"#e4dccb",ink:"#14202b",ink2:"#56616b",holly:"#a3262a",pine:"#1f4a37",pine2:"#2f7a52",wa:"#1d7f45",snow:"#efe9de"};
+const AD_SERIF='"Bodoni Moda", Didot, "Times New Roman", serif';
+const BF_LOGO=new Image();BF_LOGO.src="../marca/buen-fin.png";
+const BRAND_LINE="Esta Navidad, regala estilo.";
+function adTheme(post){if(post.theme)return post.theme;let h=0;for(const ch of String(post.id||""))h=(h*31+ch.charCodeAt(0))>>>0;
+  if(post.format==="video")return "noche";if(post.template==="coleccion")return "crema";return h%2?"crema":"noche"}
+function adRand(i){const x=Math.sin(i*12.9898)*43758.5453;return x-Math.floor(x)}
+function adFlake(ctx,x,y,s){ctx.beginPath();for(let k=0;k<3;k++){const a=k*Math.PI/3,c=Math.cos(a)*s,d=Math.sin(a)*s;ctx.moveTo(x-c,y-d);ctx.lineTo(x+c,y+d);
+  const bx=x+c*.6,by=y+d*.6,ex=Math.cos(a+.6)*s*.25,ey=Math.sin(a+.6)*s*.25,fx=Math.cos(a-.6)*s*.25,fy=Math.sin(a-.6)*s*.25;ctx.moveTo(bx,by);ctx.lineTo(bx-ex,by-ey);ctx.moveTo(bx,by);ctx.lineTo(bx-fx,by-fy)}ctx.stroke()}
+function adCream(ctx,W,H,u){const g=ctx.createRadialGradient(W*.5,H*.52,80*u,W*.5,H*.52,Math.max(W,H)*.72);g.addColorStop(0,"#fcfaf5");g.addColorStop(.7,AD_C.cream);g.addColorStop(1,AD_C.cream2);
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.save();ctx.strokeStyle="rgba(31,74,55,.10)";ctx.lineWidth=2*u;ctx.lineCap="round";
+  for(let i=0;i<16;i++)adFlake(ctx,adRand(i)*W,adRand(i+40)*H,(12+adRand(i+80)*16)*u);ctx.restore()}
+// Serie de luces: cable verde pino con focos rojo, dorado y verde; titilan en el video.
+function adLights(ctx,W,y,u,t=0){const step=150*u,cols=[AD_C.holly,AD_C.gold,AD_C.pine2];ctx.save();ctx.strokeStyle=AD_C.pine;ctx.lineWidth=3*u;ctx.beginPath();ctx.moveTo(-step,y);
+  for(let x=-step;x<W+step;x+=step)ctx.quadraticCurveTo(x+step/2,y+40*u,x+step,y);ctx.stroke();let k=0;
+  for(let x=-step;x<W+step;x+=step,k++){const bx=x+step/2,by=y+20*u,c=cols[(k%3+3)%3],on=.55+.45*Math.abs(Math.sin(t*14+k));
+    ctx.save();ctx.translate(bx,by);ctx.fillStyle=AD_C.pine;ctx.fillRect(-5*u,0,10*u,9*u);ctx.globalAlpha=on;ctx.shadowColor=c;ctx.shadowBlur=22*u;ctx.fillStyle=c;
+    ctx.beginPath();ctx.ellipse(0,22*u,9*u,15*u,0,0,Math.PI*2);ctx.fill();ctx.restore()}ctx.restore()}
+function adBrand(ctx,W,u,y,dark,alpha=1){const fg=dark?AD_C.ink:"#fff";ctx.save();ctx.globalAlpha=alpha;drawMtn(ctx,64*u,y,70*u,fg,AD_C.gold);ctx.restore();
+  text(ctx,"Lechuga & Co.",150*u,y+38*u,{font:`600 ${36*u}px Montserrat`,color:fg,alpha});
+  text(ctx,"Chihuahua, desde 1990",W-64*u,y+36*u,{font:`500 ${22*u}px Montserrat`,color:dark?AD_C.ink2:"#c9d0d6",align:"right",alpha})}
+function adHeader(ctx,W,u,alpha){adBrand(ctx,W,u,40*u,false,alpha)}
+function adLines(ctx,str,maxW){const n=lines(ctx,str,maxW).length;if(n<2)return lines(ctx,str,maxW);let lo=maxW*.4,hi=maxW;for(let i=0;i<14;i++){const m=(lo+hi)/2;if(lines(ctx,str,m).length<=n)hi=m;else lo=m}return lines(ctx,str,hi)}
+function adHeadline(ctx,str,x,y,maxW,size,{color,align="left",alpha=1,lines:max=3}={}){ctx.save();ctx.font=`600 ${size}px ${AD_SERIF}`;const ls=adLines(ctx,str,maxW).slice(0,max);ctx.restore();
+  ls.forEach((l,i)=>text(ctx,l,x,y+i*size*1.04,{font:`600 ${size}px ${AD_SERIF}`,color,align,alpha}));return y+(ls.length-1)*size*1.04}
+// Etiqueta de regalo colgando de un hilo, con el precio real.
+function adTag(ctx,ax,ay,u,price,sub,{dark=false,alpha=1,swing=0}={}){ctx.save();ctx.globalAlpha=alpha;ctx.font=`700 ${58*u}px ${AD_SERIF}`;
+  const tw=Math.max(ctx.measureText(price).width,(()=>{ctx.font=`500 ${21*u}px Montserrat`;return ctx.measureText(sub||"").width})())+110*u,th=132*u;
+  ctx.translate(ax,ay);ctx.rotate(-.1+swing);ctx.strokeStyle=dark?AD_C.snow:AD_C.ink;ctx.lineWidth=2*u;ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(-26*u,40*u,12*u,78*u);ctx.stroke();
+  ctx.translate(-20*u,78*u-th/2);ctx.beginPath();ctx.moveTo(38*u,0);ctx.lineTo(tw,0);ctx.lineTo(tw,th);ctx.lineTo(38*u,th);ctx.lineTo(0,th/2);ctx.closePath();
+  ctx.shadowColor="rgba(0,0,0,.3)";ctx.shadowBlur=26*u;ctx.shadowOffsetY=12*u;ctx.fillStyle=dark?AD_C.navy:AD_C.cream;ctx.fill();ctx.shadowColor="transparent";
+  ctx.strokeStyle=AD_C.gold;ctx.lineWidth=2.5*u;ctx.stroke();ctx.beginPath();ctx.arc(32*u,th/2,9*u,0,Math.PI*2);ctx.fillStyle=dark?AD_C.cream:AD_C.navy;ctx.fill();
+  text(ctx,price,62*u,th*.58,{font:`700 ${58*u}px ${AD_SERIF}`,color:dark?"#fff":AD_C.ink,alpha});
+  if(sub)text(ctx,sub,64*u,th*.84,{font:`500 ${21*u}px Montserrat`,color:dark?"#c9d0d6":AD_C.ink2,alpha});ctx.restore()}
+function adCta(ctx,W,u,y,{dark,phone,url,alpha=1,x=null}){const left=x!=null,cx=left?x:W/2,al=left?"left":"center";
+  text(ctx,BRAND_LINE,cx,y,{font:`italic 500 ${40*u}px ${AD_SERIF}`,color:dark?AD_C.gold:AD_C.holly,align:al,alpha});
+  pill(ctx,"WhatsApp"+(phone?"  "+phone:""),cx,y+26*u,{font:`600 ${30*u}px Montserrat`,bg:AD_C.wa,color:"#fff",h:78*u,padX:40*u,align:al,alpha});
+  if(url)text(ctx,url,cx,y+150*u,{font:`500 ${22*u}px Montserrat`,color:dark?"#9aa6b1":AD_C.ink2,align:al,alpha})}
+function adSale(){const st=S.settings,d=dayKey(Date.now()),sl=st.sale;return sl&&sl.active&&(!sl.start||d>=sl.start)&&(!sl.end||d<=sl.end)?sl:null}
+function adBuenFin(ctx,x,y,w,alpha=1,rot=-.07){if(!(BF_LOGO.complete&&BF_LOGO.naturalWidth))return;const h=w*BF_LOGO.naturalHeight/BF_LOGO.naturalWidth;
+  ctx.save();ctx.globalAlpha=alpha;ctx.translate(x+w/2,y+h/2);ctx.rotate(rot);ctx.shadowColor="rgba(0,0,0,.35)";ctx.shadowBlur=24;ctx.shadowOffsetY=10;ctx.drawImage(BF_LOGO,-w/2,-h/2,w,h);ctx.restore()}
+function adPrice(A,post){const it=A.items[0]||{};if(!it.p)return "";return (!it.sameprice||post.template==="colores"||(post.template==="coleccion"&&A.items.length>1)?"Desde ":"")+money(Math.min(...A.items.map(x=>x.price))).replace(/\.00$/,"")}
+function adSub(A,post){const it=A.items[0]||{};if(post.template==="colores"&&A.colors.length>1)return `${A.colors.length} colores, tallas S a XL`;
+  if(post.template==="coleccion"&&A.items.length>1)return `${A.items.length} modelos, tallas S a XL`;return it.sizes&&it.sizes.length?"Tallas "+it.sizes.join(", "):"Tallas S a XL"}
+// Escenario + prenda(s), sin textos. Devuelve la caja donde quedó la prenda.
+function adStage(ctx,W,H,u,post,A,theme,box,z,t){const crema=theme==="crema";
+  if(crema)adCream(ctx,W,H,u);else adBackground(ctx,W,H,u);
+  const {x,y,w,h}=box;
+  if(post.template==="coleccion"&&A.items.length>1){const n=Math.min(4,A.items.length),cols=n>2?2:n,rows=Math.ceil(n/cols),gw=w/cols,gh=h/rows;
+    A.items.slice(0,n).forEach((it,i)=>{const cx=x+(i%cols)*gw,cy=y+Math.floor(i/cols)*gh;photoCard(ctx,it.img,cx+8*u,cy+8*u,gw-16*u,gh-70*u,0,z,crema);
+      text(ctx,`${it.p.name}`,cx+gw/2,cy+gh-34*u,{font:`600 ${22*u}px Montserrat`,color:crema?AD_C.ink:"#fff",align:"center"});
+      text(ctx,money(it.price).replace(/\.00$/,""),cx+gw/2,cy+gh-6*u,{font:`700 ${26*u}px ${AD_SERIF}`,color:crema?AD_C.holly:AD_C.gold,align:"center"})})}
+  else if(post.template==="colores"&&A.colors.length>1){const n=Math.min(3,A.colors.length),gw=w/n;
+    A.colors.slice(0,n).forEach((c,i)=>{const im=c.img,iw=gw-12*u,ih=Math.min(h-60*u,im?iw*im.height/im.width:iw),iy=y+(h-60*u-ih)/2;photoCard(ctx,im,x+i*gw+6*u,iy,iw,ih,0,z,crema);
+      text(ctx,c.color,x+i*gw+gw/2,iy+ih+44*u,{font:`600 ${30*u}px Montserrat`,color:crema?AD_C.ink:"#fff",align:"center"})})}
+  else photoCard(ctx,(A.items[0]||{}).img,x,y,w,h,0,z,crema)}
 function drawAd(ctx,W,H,post,A,t){
-  const vid=post.format==="video",tall=post.format!=="post",endAt=vid?.84:9,u=W/1080,a=(s,e)=>vid?ease((t-s)/(e-s)):1;
-  adBackground(ctx,W,H,u);adHeader(ctx,W,u,1);
-  const it=A.items[0]||{},badge=adBadge();
-  // Gancho de los primeros segundos (solo video), grande y centrado
-  if(vid&&post.hook&&t<.26){const al=Math.min(a(0,.05),1-ease((t-.2)/.06));ctx.save();ctx.font=`italic 800 ${86*u}px Montserrat`;const ls=lines(ctx,post.hook.toUpperCase(),W-160*u).slice(0,4);ctx.restore();
-    ls.forEach((l,i)=>text(ctx,l,W/2,H*.42+(i-(ls.length-1)/2)*96*u,{font:`italic 800 ${86*u}px Montserrat`,align:"center",alpha:al,color:i===ls.length-1?AD_G:"#fff"}))}
-  const show=vid?a(.22,.34):1;
-  // Título arriba de la foto
-  const hs=(tall?84:64)*u,hy=tall?250*u:170*u;
-  ctx.save();ctx.font=`italic 800 ${hs}px Montserrat`;const hl=lines(ctx,(post.headline||it.p&&it.p.name||"").toUpperCase(),W-140*u).slice(0,2);ctx.restore();
-  hl.forEach((l,i)=>text(ctx,l,W/2,hy+i*hs*1.05,{font:`italic 800 ${hs}px Montserrat`,align:"center",color:i===hl.length-1&&hl.length>1?AD_G:"#fff",alpha:vid?a(.3,.4):1}));
-  // Tarjeta(s) con la foto completa
-  // Insignia de descuento centrada entre el título y la foto (no tapa la foto)
-  const ba=vid?a(.4,.48):1,by=H-(tall?230:150)*u;let cy=hy+hl.length*hs*1.05-(tall?20:30)*u;
-  if(badge){pill(ctx,badge[0],W/2,cy,{font:`italic 800 ${(tall?34:30)*u}px Montserrat`,h:(tall?64:58)*u,padX:26*u,align:"center",alpha:ba});cy+=(tall?96:82)*u}else cy+=(tall?40:24)*u;
-  const cw=Math.min((tall?900:800)*u,by-(tall?190:110)*u-cy),cx=(W-cw)/2,r=30*u,sc=vid?.9+.1*show:1,z=vid?1+.05*t:1;
-  ctx.save();ctx.globalAlpha=show;ctx.translate(W/2,cy+cw/2);ctx.scale(sc,sc);ctx.translate(-W/2,-(cy+cw/2));
-  if(post.template==="coleccion"&&A.items.length>1){const n=Math.min(4,A.items.length),gap=18*u,tw=(cw-gap)/2;
-    A.items.slice(0,4).forEach((x,i)=>{const tx=cx+(i%2)*(tw+gap),ty=cy+Math.floor(i/2)*(tw+gap)+(n===2?tw/2:0);photoCard(ctx,x.img,tx,ty,tw,tw,22*u,z);
-      pill(ctx,money(x.price),tx+tw-14*u,ty+tw-60*u,{font:`800 ${28*u}px Montserrat`,h:46*u,padX:16*u,align:"right"})})}
-  else if(post.template==="colores"&&A.colors.length>1){const n=Math.min(4,A.colors.length),gap=18*u,tw=(cw-gap)/2;
-    A.colors.slice(0,4).forEach((c,i)=>{const tx=cx+(i%2)*(tw+gap)+(n===3&&i===2?(tw+gap)/2:0),ty=cy+Math.floor(i/2)*(tw+gap)+(n===2?tw/2:0);photoCard(ctx,c.img,tx,ty,tw,tw,22*u,z);
-      pill(ctx,c.color,tx+14*u,ty+tw-60*u,{font:`700 ${24*u}px Poppins`,bg:AD_N,color:"#fff",h:46*u,padX:16*u})})}
-  else photoCard(ctx,it.img,cx,cy,cw,cw,r,z);
-  ctx.restore();
-  // Precio sobre la esquina inferior de la tarjeta
-  const pa=vid?a(.46,.56):1,single=!(post.template==="coleccion"&&A.items.length>1);
-  if(it.p&&single){const pr=(!it.sameprice||post.template==="colores"?"Desde ":"")+money(Math.min(...A.items.map(x=>x.price)));
-    pill(ctx,pr,cx+cw+12*u,cy+cw-58*u,{font:`800 ${(tall?54:46)*u}px Montserrat`,h:(tall?92:78)*u,padX:34*u,align:"right",alpha:pa})}
-  // Texto debajo: frase, tallas/colores y botón de WhatsApp
-  let y=cy+cw+(tall?86:62)*u;const ta=vid?a(.5,.6):1;
-  if(post.subline&&tall){ctx.save();ctx.font=`500 ${38*u}px Poppins`;const sl=lines(ctx,post.subline,W-160*u).slice(0,2);ctx.restore();sl.forEach((l,i)=>text(ctx,l,W/2,y+i*50*u,{font:`500 ${38*u}px Poppins`,color:"#e6eaee",align:"center",alpha:ta}));y+=sl.length*50*u+16*u}
-  const info=post.template==="colores"&&A.colors.length>1?`${A.colors.length} colores disponibles`:post.template==="coleccion"&&A.items.length>1?`${A.items.length} modelos · tallas S a XL`:it.sizes&&it.sizes.length?"Tallas "+it.sizes.join(" · "):badge?badge[1]:"Tallas S · M · L · XL";
-  text(ctx,info,W/2,y+(tall?10:0)*u,{font:`600 ${(tall?32:28)*u}px Poppins`,color:AD_G,align:"center",alpha:ta});
-  const bw=W-(tall?200:240)*u;
-  ctx.save();ctx.globalAlpha=vid?a(.56,.66):1;ctx.fillStyle="#25d366";rrect(ctx,(W-bw)/2,by,bw,(tall?100:84)*u,(tall?50:42)*u);ctx.fill();ctx.restore();
-  text(ctx,"PIDE POR WHATSAPP"+(A.phone?" · "+A.phone:""),W/2,by+(tall?62:53)*u,{font:`800 ${(tall?36:30)*u}px Montserrat`,align:"center",color:"#fff",alpha:vid?a(.56,.66):1});
-  if(A.url)text(ctx,A.url,W/2,H-(tall?70:40)*u,{font:`500 ${(tall?26:22)*u}px Poppins`,color:"#aab3bc",align:"center",alpha:vid?a(.6,.7):1});
-  // Cierre del video
-  if(vid&&t>endAt){const e=ease((t-endAt)/.08);ctx.save();ctx.globalAlpha=e;adBackground(ctx,W,H,u);ctx.restore();
-    ctx.save();ctx.globalAlpha=e;drawMtn(ctx,W/2-130*u,H*.33,260*u);ctx.restore();text(ctx,"LECHUGA & CO.",W/2,H*.33+250*u,{font:`700 ${72*u}px Montserrat`,align:"center",spacing:10*u,alpha:e});
-    text(ctx,"ROPA · CHAMARRAS · SUDADERAS",W/2,H*.33+310*u,{font:`600 ${26*u}px Montserrat`,align:"center",color:"#cfd6dd",spacing:8*u,alpha:e});
-    if(badge)pill(ctx,badge[0],W/2,H*.55,{font:`italic 800 ${40*u}px Montserrat`,h:76*u,padX:30*u,align:"center",alpha:e});
-    text(ctx,"Pide por WhatsApp",W/2,H*.66,{font:`italic 800 ${58*u}px Montserrat`,align:"center",color:AD_G,alpha:e});
-    if(A.phone)text(ctx,A.phone,W/2,H*.66+70*u,{font:`600 ${44*u}px Poppins`,align:"center",alpha:e});
-    if(A.url)text(ctx,A.url,W/2,H*.66+130*u,{font:`500 ${30*u}px Poppins`,align:"center",color:"#aab3bc",alpha:e})}
+  const vid=post.format==="video",tall=post.format!=="post",u=W/1080,theme=adTheme(post),crema=theme==="crema",dark=!crema,a=(s,e)=>vid?ease((t-s)/(e-s)):1;
+  const sl=adSale(),bf=sl&&post.template==="promo",it=A.items[0]||{};
+  // márgenes seguros: historias y reels dejan libre arriba y abajo la interfaz de Instagram
+  const top=tall?220*u:44*u,bottom=tall?H-330*u:H-40*u,hs=(tall?100:86)*u;
+  const head=(post.headline||it.p&&it.p.name||"").replace(/^./,c=>c.toUpperCase());
+  const hy=top+150*u;
+  ctx.save();ctx.font=`600 ${hs}px ${AD_SERIF}`;const nh=Math.min(tall?3:2,lines(ctx,head,W-(bf?420:150)*u).length);ctx.restore();
+  const boxTop=hy+(nh-1)*hs*1.04+((post.subline&&tall)||bf?110:50)*u,ctaY=bottom-170*u,box={x:70*u,y:boxTop,w:W-140*u,h:ctaY-boxTop-(tall?130:80)*u};
+  const zoom=vid?1+.06*t:1,show=vid?a(.02,.12):1;
+  ctx.save();ctx.globalAlpha=1;adStage(ctx,W,H,u,post,A,theme,box,zoom,t);ctx.restore();
+  if(crema)adLights(ctx,W,tall?150*u:-6*u,u,t);
+  adBrand(ctx,W,u,tall?top-10*u:top,crema,1);
+  // gancho de los primeros 2 segundos del video: grande y al centro, sobre la prenda
+  if(vid&&post.hook&&t<.24){const al=Math.min(a(0,.03),1-ease((t-.19)/.05));ctx.save();ctx.fillStyle=`rgba(16,25,35,${.45*al})`;ctx.fillRect(0,0,W,H);ctx.restore();
+    ctx.save();ctx.shadowColor="rgba(0,0,0,.6)";ctx.shadowBlur=30*u;adHeadline(ctx,post.hook,W/2,H*.4,W-140*u,112*u,{color:"#fff",align:"center",alpha:al,lines:4});ctx.restore()}
+  const ha=vid?a(.24,.32):1;
+  adHeadline(ctx,head,64*u,hy,W-(bf?420:150)*u,hs,{color:crema?AD_C.ink:"#fff",alpha:ha,lines:tall?3:2});
+  if(post.subline&&tall)text(ctx,post.subline,66*u,hy+(nh-1)*hs*1.04+64*u,{font:`500 ${34*u}px Montserrat`,color:crema?AD_C.ink2:"#d6dce1",alpha:ha});
+  if(bf){adBuenFin(ctx,W-(tall?350:310)*u,top+(tall?70:60)*u,(tall?280:240)*u,ha);
+    if(!(post.subline&&tall))text(ctx,`${sl.percent}% en toda la tienda, hasta el ${new Date(sl.end+"T12:00").toLocaleDateString("es-MX",{day:"numeric",month:"long"})}`,66*u,hy+(nh-1)*hs*1.04+56*u,{font:`600 ${28*u}px Montserrat`,color:crema?AD_C.holly:AD_C.gold,alpha:ha})}
+  const pr=adPrice(A,post);
+  const withTag=pr&&!(post.template==="coleccion"&&A.items.length>1);
+  if(withTag)adTag(ctx,104*u,ctaY-70*u,u,pr,adSub(A,post),{dark,alpha:vid?a(.32,.42):1,swing:vid?Math.sin(t*9)*.03*(1-a(.32,.6)):0});
+  adCta(ctx,W,u,ctaY,{dark,phone:A.phone,url:tall?"":A.url,alpha:vid?a(.4,.5):1,x:withTag?W-530*u:null});
+  // cierre del video
+  if(vid&&t>.84){const e=ease((t-.84)/.08);ctx.save();ctx.globalAlpha=e;adBackground(ctx,W,H,u);ctx.restore();
+    ctx.save();ctx.globalAlpha=e;drawMtn(ctx,W/2-110*u,H*.27,220*u,"#fff",AD_C.gold);ctx.restore();
+    text(ctx,"Lechuga & Co.",W/2,H*.27+210*u,{font:`600 ${64*u}px Montserrat`,align:"center",alpha:e});
+    adHeadline(ctx,BRAND_LINE,W/2,H*.47,W-160*u,92*u,{color:"#fff",align:"center",alpha:e});
+    text(ctx,"Regala Lechuga & Co.",W/2,H*.47+190*u,{font:`italic 500 ${46*u}px ${AD_SERIF}`,color:AD_C.gold,align:"center",alpha:e});
+    pill(ctx,"Escríbenos por WhatsApp",W/2,H*.64,{font:`600 ${40*u}px Montserrat`,bg:AD_C.wa,color:"#fff",h:96*u,padX:48*u,align:"center",alpha:e});
+    if(A.phone)text(ctx,A.phone,W/2,H*.64+170*u,{font:`600 ${52*u}px Montserrat`,align:"center",alpha:e})}
+}
+// Portada del reel: se ve bien en la cuadrícula del perfil (Instagram recorta al centro 3:4), sin botones.
+function drawCover(ctx,W,H,post,A){const u=W/1080,theme=adTheme(post),crema=theme==="crema",it=A.items[0]||{};
+  const safeTop=(H-1440*u)/2,box={x:60*u,y:safeTop+490*u,w:W-120*u,h:860*u};
+  adStage(ctx,W,H,u,post,A,theme,box,1,0);if(crema)adLights(ctx,W,safeTop+20*u,u,0);
+  adBrand(ctx,W,u,safeTop+110*u,crema,1);
+  const t=(post.cover_title||post.headline||it.p&&it.p.name||"").replace(/^./,c=>c.toUpperCase());
+  adHeadline(ctx,t,W/2,safeTop+300*u,W-140*u,118*u,{color:crema?AD_C.ink:"#fff",align:"center",lines:2});
 }
 const adSize=f=>f==="post"?[1080,1350]:[1080,1920];
 // Clips propios de las prendas de la pieza (o generales), ya cargados y listos para dibujarse.
@@ -1367,7 +1420,8 @@ function drawClip(ctx,W,H,post,A,v,t){
 function pickTrack(mood){const list=(AG.st&&AG.st.music)||[];if(!list.length)return "";const m=list.filter(x=>x.file.startsWith(mood+"--"));const pool=m.length?m:list;return pool[Math.floor(Math.random()*pool.length)].file}
 function blobToDataURL(b){return new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(b)})}
 async function designPost(post,onStep){
-  await document.fonts.ready;if(!AD_SCENE.complete)await new Promise(r=>{AD_SCENE.onload=AD_SCENE.onerror=r});const A=await adAssets(post);if(!A.items.length)throw new Error("Las prendas de esta pieza ya no existen");
+  await document.fonts.ready;await Promise.all(['600 80px "Bodoni Moda"','700 60px "Bodoni Moda"','italic 500 40px "Bodoni Moda"','600 30px Montserrat'].map(f=>document.fonts.load(f).catch(()=>{})));
+  for(const im of [AD_SCENE,BF_LOGO])if(!im.complete)await new Promise(r=>{im.addEventListener("load",r,{once:true});im.addEventListener("error",r,{once:true})});const A=await adAssets(post);if(!A.items.length)throw new Error("Las prendas de esta pieza ya no existen");
   const [W,H]=adSize(post.format),cv=document.createElement("canvas");cv.width=W;cv.height=H;const ctx=cv.getContext("2d");
   const prices=Object.fromEntries(post.product_ids.map(id=>[id,num((S.products.find(p=>p.id===id)||{}).price)]));
   if(post.format!=="video"){drawAd(ctx,W,H,post,A,1);return {data:cv.toDataURL("image/jpeg",.9),prices,track:""}}
@@ -1385,7 +1439,9 @@ async function designPost(post,onStep){
   const stopped=new Promise(r=>rec.onstop=r);frameAt(0);rec.start(250);if(src)src.start();const t0=performance.now();
   await new Promise(res=>{const frame=()=>{const t=(performance.now()-t0)/dur;frameAt(Math.min(1,t));if(onStep)onStep(Math.min(1,t));if(t<1)requestAnimationFrame(frame);else res()};requestAnimationFrame(frame)});
   rec.stop();await stopped;if(ac)ac.close();stream.getTracks().forEach(t=>t.stop());clips.forEach(v=>{v.pause();URL.revokeObjectURL(v.src)});
-  return {data:await blobToDataURL(new Blob(chunks,{type:"video/mp4"})),prices,track};
+  // Portada propia del reel (Instagram la usa en el perfil en lugar del primer cuadro del video).
+  const cc=document.createElement("canvas");cc.width=W;cc.height=H;drawCover(cc.getContext("2d"),W,H,post,A);
+  return {data:await blobToDataURL(new Blob(chunks,{type:"video/mp4"})),cover:cc.toDataURL("image/jpeg",.9),prices,track};
 }
 async function designMany(list){
   for(let i=0;i<list.length;i++){const p=list[i];AG.busy=`Diseñando pieza ${i+1} de ${list.length}${p.format==="video"?" (video de 9 segundos, no cambies de pestaña)":""}…`;schedule();
