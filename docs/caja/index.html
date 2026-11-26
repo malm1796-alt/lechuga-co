@@ -1234,17 +1234,55 @@ async function adAssets(post){
 function rrect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
 // La foto completa dentro del espacio (sin recortar: las fotos del catálogo ya traen sus detalles).
 function contain(ctx,img,x,y,w,h,z=1){const s=Math.min(w/img.width,h/img.height)*z,iw=img.width*s,ih=img.height*s;ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.drawImage(img,x+(w-iw)/2,y+(h-ih)/2,iw,ih);ctx.restore()}
-// Tarjeta blanca con sombra y la foto adentro.
-function photoCard(ctx,img,x,y,w,h,r,z){ctx.save();ctx.shadowColor="rgba(0,0,0,.45)";ctx.shadowBlur=40*(w/900);ctx.shadowOffsetY=14*(w/900);ctx.fillStyle="#fff";rrect(ctx,x,y,w,h,r);ctx.fill();ctx.restore();
-  ctx.save();rrect(ctx,x,y,w,h,r);ctx.clip();ctx.fillStyle="#f4f3ef";ctx.fillRect(x,y,w,h);if(img)contain(ctx,img,x,y,w,h,z);ctx.restore()}
+// Quita el fondo blanco de las fotos del catálogo para que la prenda quede sobre el fondo de la página o la pieza.
+// 1) Rellena desde las orillas siguiendo el fondo mientras sea gris claro y cambie suave (así entra también la sombra
+//    gris bajo la prenda, que se vuelve sombra oscura sobre el fondo; se detiene en la orilla de la tela). 2) Los huecos blancos grandes encerrados (entre la
+//    manga y el cuerpo) también son fondo. 3) Los textos e íconos delgados que eran oscuros sobre blanco se aclaran.
+function quitarFondo(img,max=1400){
+  const W0=img.naturalWidth||img.width,H0=img.naturalHeight||img.height,s=Math.min(1,max/Math.max(W0,H0)),w=Math.round(W0*s),h=Math.round(H0*s);
+  const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(img,0,0,w,h);
+  const d=g.getImageData(0,0,w,h),p=d.data,n=w*h,bg=new Uint8Array(n),q=new Int32Array(n);
+  const mn=new Uint8Array(n),sat=new Uint8Array(n),lum=new Uint8Array(n);
+  for(let i=0;i<n;i++){const r=p[i*4],gg=p[i*4+1],b=p[i*4+2],lo=Math.min(r,gg,b),hi=Math.max(r,gg,b);mn[i]=lo;sat[i]=hi-lo;lum[i]=(r*3+gg*6+b)/10}
+  let qh=0,qt=0;
+  const seed=i=>{if(!bg[i]&&mn[i]>=200&&sat[i]<=24){bg[i]=1;q[qt++]=i}};
+  for(let x=0;x<w;x++){seed(x);seed((h-1)*w+x)}for(let y=0;y<h;y++){seed(y*w);seed(y*w+w-1)}
+  const step=(i,j)=>{if(!bg[j]&&sat[j]<=24&&mn[j]>=110&&Math.abs(lum[j]-lum[i])<=11){bg[j]=1;q[qt++]=j}};
+  while(qh<qt){const i=q[qh++],x=i%w;if(x>0)step(i,i-1);if(x<w-1)step(i,i+1);if(i>=w)step(i,i-w);if(i<n-w)step(i,i+w)}
+  // huecos encerrados: zonas grandes, parejas y casi blancas
+  const seen=new Uint8Array(n),minArea=Math.round(n*.0012);
+  for(let k=0;k<n;k++){if(bg[k]||seen[k]||mn[k]<236||sat[k]>14)continue;
+    let a=0,b2=0;q[b2++]=k;seen[k]=1;
+    while(a<b2){const i=q[a++],x=i%w;for(const j of [x>0?i-1:-1,x<w-1?i+1:-1,i>=w?i-w:-1,i<n-w?i+w:-1]){if(j<0||seen[j]||bg[j]||mn[j]<228||sat[j]>18)continue;seen[j]=1;q[b2++]=j}}
+    if(b2>=minArea)for(let t=0;t<b2;t++)bg[q[t]]=1}
+  const R=4,near=(i,dx,dy)=>{const x=i%w,y=(i-x)/w;for(let k=1;k<=R;k++){const xx=x+dx*k,yy=y+dy*k;if(xx<0||yy<0||xx>=w||yy>=h)return false;if(bg[yy*w+xx])return true}return false};
+  const out=new Uint8ClampedArray(p);
+  for(let i=0;i<n;i++){const o=i*4;if(bg[i]){const l=lum[i];if(l<236){out[o]=out[o+1]=out[o+2]=0;out[o+3]=Math.min(150,Math.round((240-l)*1.7))}else out[o+3]=0;continue}
+    const lo=mn[i];
+    if(lo<222&&((near(i,-1,0)&&near(i,1,0))||(near(i,0,-1)&&near(i,0,1)))){const a=Math.min(255,Math.round((235-lo)/235*255*1.25));
+      out[o]=239;out[o+1]=233;out[o+2]=222;out[o+3]=Math.max(0,a);continue}
+    const x=i%w;if((x>0&&bg[i-1])||(x<w-1&&bg[i+1])||(i>=w&&bg[i-w])||(i<n-w&&bg[i+w])){
+      if(sat[i]<=30&&lo>=150)out[o+3]=Math.max(0,Math.min(255,Math.round((255-lo)/105*255)))}}
+  d.data.set(out);g.putImageData(d,0,0);return c;
+}
+// La foto sin su fondo blanco, directamente sobre el fondo de la pieza (antes era una tarjeta blanca pegada encima).
+const CUTS=new WeakMap();
+function photoCard(ctx,img,x,y,w,h,r,z=1){if(!img)return;let c=CUTS.get(img);if(!c){c=quitarFondo(img);CUTS.set(img,c)}
+  ctx.save();ctx.translate(x+w/2,y+h/2);ctx.scale(z,z);
+  const fy=h*.44/.18,sh=ctx.createRadialGradient(0,fy,0,0,fy,w*.42);sh.addColorStop(0,"rgba(0,0,0,.5)");sh.addColorStop(1,"rgba(0,0,0,0)");ctx.save();ctx.scale(1,.18);ctx.fillStyle=sh;ctx.fillRect(-w/2,fy-w*.42,w,w*.84);ctx.restore();
+  contain(ctx,c,-w/2,-h/2,w,h,1);ctx.restore()}
 function pill(ctx,label,x,y,{font,bg=AD_G,color=AD_N,padX=28,h=72,align="left",alpha=1}){ctx.save();ctx.globalAlpha=alpha;ctx.font=font;const w=ctx.measureText(label).width+padX*2,x0=align==="right"?x-w:align==="center"?x-w/2:x;
   ctx.fillStyle=bg;rrect(ctx,x0,y,w,h,h/2);ctx.fill();ctx.fillStyle=color;ctx.textBaseline="middle";ctx.textAlign="center";ctx.fillText(label,x0+w/2,y+h/2+2);ctx.restore();return w}
 // Descuento vigente para la insignia: primero el de todos (Buen Fin), si no, el de primera compra.
 function adBadge(){const st=S.settings,d=dayKey(Date.now()),sl=st.sale;
   if(sl&&sl.active&&(!sl.start||d>=sl.start)&&(!sl.end||d<=sl.end))return [`${(sl.title||"Descuento").toUpperCase()} · ${sl.percent}%`,`En toda la tienda${sl.end?" hasta el "+new Date(sl.end+"T12:00").toLocaleDateString("es-MX",{day:"numeric",month:"long"}):""}`];
   const pr=st.promo;if(pr&&pr.active&&(!pr.end||d<=pr.end))return [`${pr.percent}% 1ª COMPRA`,`Regístrate en la página · desde ${money(pr.minimum)}`];return null}
+// Fondo de la pieza: la foto de invierno de la tienda, oscurecida en azul noche, con una luz al centro donde va la prenda.
+const AD_SCENE=new Image();AD_SCENE.src="../marca/portada-invierno.webp";
 function adBackground(ctx,W,H,u){ctx.fillStyle=AD_N;ctx.fillRect(0,0,W,H);
-  const g=ctx.createRadialGradient(W*.5,H*.42,40*u,W*.5,H*.42,W*.9);g.addColorStop(0,"#1f3346");g.addColorStop(1,AD_N);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  if(AD_SCENE.complete&&AD_SCENE.naturalWidth){ctx.save();ctx.globalAlpha=.55;ctx.filter="saturate(.7)";cover(ctx,AD_SCENE,0,0,W,H,1.05);ctx.restore();
+    const v=ctx.createLinearGradient(0,0,0,H);v.addColorStop(0,"rgba(16,25,35,.78)");v.addColorStop(.45,"rgba(16,25,35,.55)");v.addColorStop(1,"rgba(16,25,35,.92)");ctx.fillStyle=v;ctx.fillRect(0,0,W,H)}
+  const g=ctx.createRadialGradient(W*.5,H*.46,40*u,W*.5,H*.46,W*.62);g.addColorStop(0,"rgba(58,86,112,.75)");g.addColorStop(1,"rgba(16,25,35,0)");ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
   ctx.save();ctx.strokeStyle="rgba(213,166,75,.14)";ctx.lineWidth=2*u;for(let i=0;i<7;i++){ctx.beginPath();ctx.moveTo(W-(260-i*34)*u,0);ctx.lineTo(W,(260-i*34)*u);ctx.stroke();ctx.beginPath();ctx.moveTo(0,H-(260-i*34)*u);ctx.lineTo((260-i*34)*u,H);ctx.stroke()}ctx.restore()}
 function adHeader(ctx,W,u,alpha){drawMtn(ctx,52*u,34*u,78*u);text(ctx,"LECHUGA & CO.",146*u,84*u,{font:`700 ${34*u}px Montserrat`,spacing:6*u,alpha});
   text(ctx,"SINCE 1990 · AMERICAN CLOTHING",W-52*u,80*u,{font:`600 ${20*u}px Montserrat`,color:AD_G,align:"right",spacing:3*u,alpha})}
@@ -1329,7 +1367,7 @@ function drawClip(ctx,W,H,post,A,v,t){
 function pickTrack(mood){const list=(AG.st&&AG.st.music)||[];if(!list.length)return "";const m=list.filter(x=>x.file.startsWith(mood+"--"));const pool=m.length?m:list;return pool[Math.floor(Math.random()*pool.length)].file}
 function blobToDataURL(b){return new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(b)})}
 async function designPost(post,onStep){
-  await document.fonts.ready;const A=await adAssets(post);if(!A.items.length)throw new Error("Las prendas de esta pieza ya no existen");
+  await document.fonts.ready;if(!AD_SCENE.complete)await new Promise(r=>{AD_SCENE.onload=AD_SCENE.onerror=r});const A=await adAssets(post);if(!A.items.length)throw new Error("Las prendas de esta pieza ya no existen");
   const [W,H]=adSize(post.format),cv=document.createElement("canvas");cv.width=W;cv.height=H;const ctx=cv.getContext("2d");
   const prices=Object.fromEntries(post.product_ids.map(id=>[id,num((S.products.find(p=>p.id===id)||{}).price)]));
   if(post.format!=="video"){drawAd(ctx,W,H,post,A,1);return {data:cv.toDataURL("image/jpeg",.9),prices,track:""}}
