@@ -129,6 +129,14 @@ td.r,th.r{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabula
 .chart .bar{fill:var(--denim)}
 .chart .bar.now{fill:var(--thread)}
 .chart .grid{stroke:var(--line)}
+/* tablero */
+.hb{display:grid;gap:14px;margin-top:12px}
+.hb-l{display:flex;justify-content:space-between;gap:10px;font-size:.92rem}
+.hb-l span{min-width:0;overflow-wrap:anywhere}
+.hb-t{height:10px;border-radius:5px;background:var(--sunk);margin-top:6px;overflow:hidden}
+.hb-t i{display:block;height:100%;border-radius:5px;background:var(--denim)}
+.hb-r:first-child .hb-t i{background:var(--thread)}
+.heat td[style]{background:color-mix(in srgb,var(--thread) calc(var(--h) * 45%),var(--surface))}
 /* Brand */
 .swatches{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))}
 .sw{border-radius:var(--r);overflow:hidden;border:1px solid var(--line);background:var(--surface)}
@@ -282,7 +290,7 @@ code.url{font-family:var(--f-mono);font-size:.82rem;background:var(--sunk);paddi
 <div id="toast" class="toast" hidden></div>
 <div id="overlay" class="overlay" hidden></div>
 <script>
-const TABS=[["hoy","Hoy"],["vender","Punto de venta"],["catalogo","Catálogo"],["clientes","Clientes"],["movs","Gastos y compras"],["reportes","Estados financieros"],["conexiones","Conexiones"],["publicidad","Publicidad"],["marca","Marca"],["ajustes","Ajustes"]];
+const TABS=[["hoy","Hoy"],["vender","Punto de venta"],["catalogo","Catálogo"],["clientes","Clientes"],["movs","Gastos y compras"],["tablero","Tablero"],["reportes","Estados financieros"],["conexiones","Conexiones"],["publicidad","Publicidad"],["marca","Marca"],["ajustes","Ajustes"]];
 // Dónde está el servidor: en la PC de la tienda es la misma dirección; desde GitHub Pages es la del túnel,
 // que tunel.js publica en config.json cada vez que la PC enciende.
 const REMOTE=/github\.io$/i.test(location.hostname);
@@ -318,7 +326,7 @@ const ROLES={admin:"Administrador",encargado:"Encargado",vendedor:"Vendedor",con
 const ROLE_HINT={admin:"todo",encargado:"vende, catálogo, gastos y finanzas",vendedor:"vende y registra clientes",consulta:"solo ve ventas y finanzas"};
 const PERM_LABEL={vender:"Vender en la caja",clientes:"Registrar y ver clientes",catalogo:"Cambiar precios, piezas y fotos",archivar:"Archivar o borrar prendas",movs:"Registrar gastos y compras",finanzas:"Ver estados financieros y costos",publicar:"Publicar la página web",publicidad:"Publicidad en redes"};
 // Qué pestaña pide qué permiso (basta uno). Las que no están aquí las ve todo el que entra.
-const TAB_PERM={vender:["vender"],catalogo:["catalogo"],clientes:["clientes","vender"],movs:["movs"],reportes:["finanzas"],conexiones:["publicar","admin"],publicidad:["publicidad"],ajustes:["admin"]};
+const TAB_PERM={vender:["vender"],catalogo:["catalogo"],clientes:["clientes","vender"],movs:["movs"],tablero:["finanzas"],reportes:["finanzas"],conexiones:["publicar","admin"],publicidad:["publicidad"],ajustes:["admin"]};
 const tabOk=k=>!TAB_PERM[k]||TAB_PERM[k].some(can);
 const photoUrl=p=>p&&p.photo?API+"/api/fotos/"+encodeURIComponent(p.id)+"?v="+p.photo:"";
 
@@ -509,17 +517,17 @@ function render(){
   if(!S.ready){$("#main").innerHTML=h+`<div class="empty">Conectando con la PC de la tienda…</div>`;return}
   if(S.products.some(p=>p.example)||S.sales.some(s=>s.example))h+=`<div class="banner">Estás viendo <b>datos de ejemplo</b> para practicar. ${isAdmin()?'Bórralos en <a href="#" data-act="tab" data-k="ajustes">Ajustes</a>':"Pide al administrador que los borre"} antes de empezar a vender.</div>`;
   if(!tabOk(UI.tab))UI.tab="hoy";
-  h+=({hoy:vHoy,vender:vVender,catalogo:vCatalogo,clientes:vClientes,movs:vMovs,reportes:vReportes,conexiones:vConexiones,publicidad:vPublicidad,marca:vMarca,ajustes:vAjustes}[UI.tab])();
+  h+=({hoy:vHoy,vender:vVender,catalogo:vCatalogo,clientes:vClientes,movs:vMovs,tablero:vTablero,reportes:vReportes,conexiones:vConexiones,publicidad:vPublicidad,marca:vMarca,ajustes:vAjustes}[UI.tab])();
   $("#main").innerHTML=h;restore(c);
 }
 
-function bars(days){
+function bars(days,label="Ventas de los últimos 14 días"){
   const W=640,H=150,P=24,max=Math.max(100,...days.map(d=>d.v)),bw=(W-P*2)/days.length;
   const nice=Math.pow(10,Math.floor(Math.log10(max))),top=Math.ceil(max/nice)*nice;
-  let s=`<svg class="chart" viewBox="0 0 ${W} ${H+28}" width="100%" role="img" aria-label="Ventas de los últimos 14 días">`;
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H+28}" width="100%" role="img" aria-label="${esc(label)}">`;
   [0,.5,1].forEach(f=>{const y=P+(H-P)*(1-f);s+=`<line class="grid" x1="${P+30}" x2="${W-P}" y1="${y}" y2="${y}"/><text x="${P+26}" y="${y+3}" text-anchor="end">${f?(top*f>=1000?(top*f/1000).toFixed(top*f%1000?1:0)+"k":Math.round(top*f)):"0"}</text>`});
   days.forEach((d,i)=>{const x=P+30+i*((W-P*2-30)/days.length),w=(W-P*2-30)/days.length-4,hh=(H-P)*d.v/top;
-    s+=`<rect class="bar ${i===days.length-1?"now":""}" x="${x+2}" y="${H-hh}" width="${Math.max(1,w)}" height="${Math.max(0,hh)}" rx="2"><title>${d.l}: ${money(d.v)}</title></rect><text x="${x+2+w/2}" y="${H+16}" text-anchor="middle">${d.d}</text>`});
+    s+=`<rect class="bar ${(d.now??i===days.length-1)?"now":""}" x="${x+2}" y="${H-hh}" width="${Math.max(1,w)}" height="${Math.max(0,hh)}" rx="2"><title>${d.l}: ${money(d.v)}</title></rect><text x="${x+2+w/2}" y="${H+16}" text-anchor="middle">${d.d}</text>`});
   return s+"</svg>";
 }
 function vHoy(){
@@ -769,6 +777,67 @@ function movList(type){
   const rows=S.purchases.filter(p=>(p.type||"compra")===type).sort((a,b)=>b.ts-a.ts).slice(0,60);
   if(!rows.length)return `<div class="empty">Sin ${type==="compra"?"compras":"ajustes"} registrados.</div>`;
   return `<div class="tbl"><table><thead><tr><th>Fecha</th><th>Producto</th><th class="r">Piezas</th>${type==="compra"?'<th>Proveedor</th><th class="r">Costo c/u</th>':"<th>Motivo</th>"}<th class="r">Total</th><th></th></tr></thead><tbody>${rows.map(p=>`<tr><td class="num">${fdate(p.ts)}</td><td>${esc(pn[p.pid]||"Producto archivado")}</td><td class="r">${p.qty}</td>${type==="compra"?`<td>${esc(p.supplier||"")}</td><td class="r">${money(p.unitCost)}</td>`:`<td>${esc(p.reason||"")}</td>`}<td class="r ${p.total<0?"neg-v":""}">${money(p.total)}</td><td>${delBtn("b",p.id)}</td></tr>`).join("")}</tbody></table></div>`;
+}
+
+/* ---------- tablero (lo que antes iba en Power BI) ---------- */
+// Barras horizontales: etiqueta, valor y una nota corta; el ancho es proporcional al mayor.
+function hbars(rows,fmt=money){const max=Math.max(1,...rows.map(r=>r.v));
+  return `<div class="hb">${rows.map(r=>`<div class="hb-r"><div class="hb-l"><span>${esc(r.l)}</span><b>${fmt(r.v)}</b></div><div class="hb-t"><i style="width:${Math.max(r.v>0?2:0,r.v/max*100).toFixed(1)}%"></i></div>${r.sub?`<div class="small muted">${r.sub}</div>`:""}</div>`).join("")}</div>`}
+// Ventas por día (semana o mes) o por mes (año), dentro del periodo elegido.
+function serie(R,kind){const out=[];
+  if(kind==="anio"){for(let m=0;m<12;m++){const a=new Date(new Date(R.a).getFullYear(),m,1),b=new Date(a.getFullYear(),m+1,1);
+      out.push({d:a.toLocaleDateString("es-MX",{month:"short"}).replace(".",""),l:a.toLocaleDateString("es-MX",{month:"long",year:"numeric"}),v:pnl(+a,+b).neto,now:Date.now()>=+a&&Date.now()<+b})}}
+  else{for(let t=R.a;t<R.b;){const a=new Date(t),b=new Date(a.getFullYear(),a.getMonth(),a.getDate()+1);
+      out.push({d:a.getDate(),l:fdate(+a),v:S.sales.filter(s=>s.ts>=+a&&s.ts<+b).reduce((x,s)=>x+s.total,0),now:dayKey(+a)===dayKey(Date.now())});t=+b}}
+  return out}
+function vTablero(){
+  const R=range(UI.period,UI.offset),P=range(UI.period,UI.offset-1),c=pnl(R.a,R.b),p=pnl(P.a,P.b),base=c.neto||NaN;
+  const delta=(x,y)=>y?`<span class="${x>=y?"pos-v":"neg-v"}">${x>=y?"▲":"▼"} ${pct(Math.abs(x-y)/y)}</span> vs periodo anterior`:"Sin datos del periodo anterior";
+  const sales=S.sales.filter(s=>s.ts>=R.a&&s.ts<R.b),pz={},pcat={};S.products.forEach(x=>{pz[x.id]=x.season||NO_SEASON;pcat[x.id]=x.category||"Sin categoría"});
+  // temporada × categoría
+  const mx={},cats=new Set();sales.forEach(s=>{const f=(s.subtotal||s.total)?s.total/(s.subtotal||s.total):1;(s.items||[]).forEach(i=>{const z=pz[i.pid]||NO_SEASON,k=pcat[i.pid]||"Sin categoría";cats.add(k);
+    const r=(mx[z]||(mx[z]={}))[k]||(mx[z][k]={q:0,v:0,c:0});r.q+=i.qty;r.v+=i.qty*i.price*f;r.c+=i.qty*(i.cost||0)})});
+  const catList=[...cats].sort(),seasons=Object.keys(mx).sort(),cellMax=Math.max(1,...seasons.flatMap(z=>catList.map(k=>(mx[z][k]||{}).v||0)));
+  // canales
+  const ch={Tienda:{n:0,v:0},WhatsApp:{n:0,v:0}};sales.forEach(s=>{const k=s.channel==="WhatsApp"?"WhatsApp":"Tienda";ch[k].n++;ch[k].v+=s.total});
+  // inventario por temporada (a costo y a precio de venta)
+  const sm=stockMap(),inv={};activeProducts().forEach(x=>{const q=Math.max(0,sm[x.id]||0);if(!q)return;const z=x.season||NO_SEASON,r=inv[z]||(inv[z]={q:0,c:0,v:0});r.q+=q;r.c+=q*num(x.cost);r.v+=q*num(x.price)});
+  const invTot=Object.values(inv).reduce((a,r)=>a+r.c,0),invQ=Object.values(inv).reduce((a,r)=>a+r.q,0);
+  // últimos 6 meses
+  const meses=[];for(let i=5;i>=0;i--){const a=new Date(new Date().getFullYear(),new Date().getMonth()-i,1),b=new Date(a.getFullYear(),a.getMonth()+1,1),r=pnl(+a,+b);
+    meses.push({l:a.toLocaleDateString("es-MX",{month:"short",year:"2-digit"}).replace(".",""),r})}
+  const top=Object.entries(c.top).sort((a,b)=>b[1].v-a[1].v).slice(0,6);
+  const units=c.units,tickets=c.n;
+  return `<div class="row between"><div><div class="eyebrow">Tablero</div><h2>${esc(R.label)}</h2></div>
+    <div class="row"><div class="chips">${[["semana","Semanal"],["mes","Mensual"],["anio","Anual"]].map(([k,l])=>`<button class="chip" data-act="period" data-k="${k}" aria-pressed="${UI.period===k}">${l}</button>`).join("")}</div>
+    <button class="tiny" data-act="off" data-k="-1" aria-label="Periodo anterior">← Anterior</button><button class="tiny" data-act="off" data-k="1" ${UI.offset>=0?"disabled":""} aria-label="Periodo siguiente">Siguiente →</button></div></div>
+  <div class="kpis">
+    <div class="kpi hero"><div class="eyebrow">Ventas netas</div><div class="v">${money(c.neto)}</div><div class="h">${delta(c.neto,p.neto)}</div></div>
+    <div class="kpi"><div class="eyebrow">Utilidad bruta</div><div class="v">${money(c.bruta)}</div><div class="h">Margen ${pct(c.bruta/base)}</div></div>
+    <div class="kpi"><div class="eyebrow">Ticket promedio</div><div class="v">${money(tickets?c.neto/tickets:0)}</div><div class="h">${tickets} ticket${tickets===1?"":"s"} · ${units} prenda${units===1?"":"s"}</div></div>
+    <div class="kpi"><div class="eyebrow">Utilidad neta</div><div class="v ${c.net<0?"neg-v":""}">${money(c.net)}</div><div class="h">Después de ${money(c.opex)} de gastos</div></div>
+    <div class="kpi"><div class="eyebrow">Inventario a costo</div><div class="v">${money(invTot)}</div><div class="h">${invQ} pieza${invQ===1?"":"s"} en tienda hoy</div></div>
+  </div>
+  <div class="card"><div class="row between"><h3>${UI.period==="anio"?"Ventas por mes":"Ventas por día"}</h3><span class="small muted">El dorado es ${UI.period==="anio"?"este mes":"hoy"}</span></div>${bars(serie(R,UI.period),UI.period==="anio"?"Ventas por mes":"Ventas por día")}</div>
+  <div class="grid g2">
+    <div class="card"><h3>Forma de pago</h3>${hbars(METHODS.map(m=>({l:METHOD_LABEL[m]||m,v:c.byMethod[m]||0,sub:pct((c.byMethod[m]||0)/base)+" de las ventas"})))}</div>
+    <div class="card"><h3>Tienda contra WhatsApp</h3>${hbars([["Tienda","En tienda"],["WhatsApp","Pedidos por WhatsApp"]].map(([k,l])=>({l,v:ch[k].v,sub:`${ch[k].n} ticket${ch[k].n===1?"":"s"} · ${pct(ch[k].v/base)}`})))}</div>
+  </div>
+  <div class="card"><div class="row between"><h3>Temporada × categoría</h3><span class="small muted">Venta del periodo; entre más oscuro, más se vendió</span></div>
+    ${seasons.length?`<div class="tbl" style="margin-top:10px"><table class="heat"><thead><tr><th>Temporada</th>${catList.map(k=>`<th class="r">${esc(k)}</th>`).join("")}<th class="r">Total</th><th class="r">Margen</th></tr></thead><tbody>
+    ${seasons.map(z=>{const row=catList.map(k=>mx[z][k]||{q:0,v:0,c:0}),tv=row.reduce((a,r)=>a+r.v,0),tc=row.reduce((a,r)=>a+r.c,0),tq=row.reduce((a,r)=>a+r.q,0);
+      return `<tr><td>${esc(z)}</td>${row.map(r=>`<td class="r" style="--h:${(r.v/cellMax).toFixed(2)}">${r.q?`<b>${money(r.v)}</b><div class="small">${r.q} pza${r.q===1?"":"s"}</div>`:'<span class="muted">—</span>'}</td>`).join("")}<td class="r"><b>${money(tv)}</b><div class="small muted">${tq} pzas</div></td><td class="r">${pct(tv?(tv-tc)/tv:NaN)}</td></tr>`}).join("")}
+    </tbody></table></div>`:`<p class="muted">Sin ventas en el periodo.</p>`}</div>
+  <div class="grid g2">
+    <div class="card"><h3>Lo más vendido</h3>${top.length?hbars(top.map(([n,t])=>({l:n,v:t.v,sub:`${t.q} pieza${t.q===1?"":"s"}`}))):`<p class="muted">Sin ventas en el periodo.</p>`}</div>
+    <div class="card"><div class="row between"><h3>Inventario por temporada</h3><span class="small muted">Para decidir qué liquidar</span></div>
+      ${Object.keys(inv).length?`<div class="tbl" style="margin-top:10px"><table><thead><tr><th>Temporada</th><th class="r">Piezas</th><th class="r">A costo</th><th class="r">A precio de venta</th></tr></thead><tbody>
+      ${Object.entries(inv).sort((a,b)=>b[1].c-a[1].c).map(([z,r])=>`<tr><td>${esc(z)}</td><td class="r">${r.q}</td><td class="r">${money(r.c)}</td><td class="r">${money(r.v)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No hay piezas en inventario.</p>`}</div>
+  </div>
+  <div class="card"><div class="row between"><h3>Últimos 6 meses</h3><button class="tiny" data-act="tab" data-k="reportes">Ver estados financieros</button></div>
+    <div class="tbl" style="margin-top:10px"><table><thead><tr><th>Mes</th><th class="r">Ventas netas</th><th class="r">Costo</th><th class="r">Utilidad bruta</th><th class="r">Gastos</th><th class="r">Utilidad neta</th><th class="r">Margen neto</th></tr></thead><tbody>
+    ${meses.map(({l,r})=>`<tr><td>${esc(l)}</td><td class="r">${money(r.neto)}</td><td class="r">${money(r.cogs)}</td><td class="r">${money(r.bruta)}</td><td class="r">${money(r.opex)}</td><td class="r ${r.net<0?"neg-v":""}"><b>${money(r.net)}</b></td><td class="r muted">${pct(r.neto?r.net/r.neto:NaN)}</td></tr>`).join("")}
+    </tbody></table></div></div>`;
 }
 
 function stRow(l,v,prev,base,cls,ind){return `<tr class="${cls||""}"><td class="${ind?"ind":""}">${l}</td><td class="r">${money(v)}</td><td class="r muted">${base?pct(v/base):""}</td><td class="r muted">${prev==null?"":money(prev)}</td></tr>`}
