@@ -4,7 +4,8 @@
 - Nombre: Lechuga & Co. Lema: "American Clothing desde 1990". Negocio familiar de ropa para caballero en Chihuahua, Chihuahua.
 - Dueño: Alonso; atiende en persona por WhatsApp. WhatsApp: 614 138 3986 (también lo contesta un asistente automático que pasa a Alonso los casos de compra).
 - Tienda en línea (catálogo, cesta y pedido por WhatsApp): https://malm1796-alt.github.io/lechuga-co/
-- Envío a domicilio en la ciudad de Chihuahua. La página también dice "Envíos a todo México" (confirmar costos y tiempos con Alonso antes de prometerlos).
+- Envío a domicilio en la ciudad de Chihuahua (se coordina por WhatsApp o llamada al 614 138 3986).
+- Envíos a todo el país a partir de $999 de compra (confirmado por la familia, 28 nov 2026). Costo y tiempo de la paquetería: por confirmar con Alonso.
 - Atiende empresas e industria: uniformes y pedidos por caja (cotización por WhatsApp).
 - Destacan chamarras de piel de borrego hechas en León, Guanajuato, y la línea "Original Deluxe" (no están en el catálogo en línea; mencionarlas solo como "pregunta por ellas en tienda").
 - Hay muchos más productos en tienda que en el catálogo (sudaderas, chalecos, tenis para agua, etc.).
