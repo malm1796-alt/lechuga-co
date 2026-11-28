@@ -8,7 +8,8 @@
 - Atiende empresas e industria: uniformes y pedidos por caja (cotización por WhatsApp).
 - Destacan chamarras de piel de borrego hechas en León, Guanajuato, y la línea "Original Deluxe" (no están en el catálogo en línea; mencionarlas solo como "pregunta por ellas en tienda").
 - Hay muchos más productos en tienda que en el catálogo (sudaderas, chalecos, tenis para agua, etc.).
-- Dirección física de la tienda: NO confirmada aquí; marcar [dirección por confirmar] donde haga falta.
+- Ubicación de la tienda: El Pasito, pasillo 2A, Chihuahua (atiende Alonso). Entregas: llamar al 614 138 3986 para ponerse de acuerdo.
+- Marketplace: las publicaciones salen del perfil personal de Alonso, así que los mensajes llegan a su Messenger personal (no a una página). El saludo que usa: «¡Sí, claro! Buen día 😊 Todavía está disponible. Estamos en El Pasito, pasillo 2A, con Alonso. Si prefieres entrega, márcame al 614 138 3986 y nos ponemos de acuerdo. ¡A tus órdenes!»
 
 ## Catálogo en línea (precios reales, MXN; tallas S, M, L, XL; existencias limitadas)
 | Prenda | Colores | Precio |
